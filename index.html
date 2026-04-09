@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elo Glory Rankings</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+
+<body>
+
+  <nav>
+    <h1>Glory Ranking</h1>
+    <ul>
+      <li onclick="showPage('home')">Home</li>
+      <li onclick="showPage('leaderboard')">Leaderboard</li>
+      <li onclick="showPage('fighter')">Fighters</li>
+      <li onclick="showPage('admin')">Admin</li>
+    </ul>
+  </nav>
+
+  <!-- Home Page -->
+  <div id="home" class="page active">
+    <div class="container">
+      <h2>Home</h2>
+      <div class="card">
+        <p>Welcome to the Glory Elo ranking system.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Page -->
+  <div id="leaderboard" class="page">
+    <div class="container">
+      <h2>Leaderboard</h2>
+      <div class="leaderboard-controls">
+
+        <select id="weightFilter" onchange="renderLeaderboard()"></select>
+
+<label class="toggle">
+  <input type="checkbox" id="showRetiredToggle" checked onchange="renderLeaderboard()">
+  <div class="toggle-slider"></div>
+  <span>Retired</span>
+</label>
+
+      </div>
+      <br>
+      <div class="card" style="max-height:500px; overflow-y:auto;">
+        <div id="leaderboardList"></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Fighter Search Page -->
+  <div id="fighter" class="page">
+    <div class="container">
+      <h2>Fighter Search</h2>
+      <div class="card">
+        <input id="searchInput" placeholder="Search fighter..." oninput="searchFighter()">
+        <div id="searchResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fighter Profile Page -->
+  <div id="fighterProfile" class="page">
+    <div class="container">
+      <h2 id="fighterName">Fighter Name</h2>
+      <div class="card" id="fighterStats"></div>
+      <div class="card">
+        <h3>Fight History</h3>
+        <div id="fightHistory" style="max-height:300px; overflow-y:auto;"></div>
+      </div>
+      <div class="card">
+        <h3>Elo Over Time</h3>
+        <div class="chart-container">
+          <canvas id="eloChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Page -->
+  <div id="admin" class="page">
+    <div class="container">
+      <h2>Admin Panel</h2>
+
+      <!-- Login -->
+      <div class="card" id="loginCard">
+        <p>You must log in to access admin features.</p>
+        <br>
+        <button onclick="Login()">Login with whitelisted username</button>
+      </div>
+
+      <!-- Admin Content -->
+      <div id="adminContent" style="display:none;">
+
+        <!-- Add Fighter -->
+        <div class="card">
+          <h3>Add Fighter</h3>
+          <div class="form-group">
+            <label for="newFighterName">Name</label>
+            <input type="text" id="newFighterName" placeholder="Enter fighter name">
+          </div>
+          <div class="form-group">
+            <label for="newFighterWeight">Weight Class</label>
+            <select id="newFighterWeight"></select>
+          </div>
+          <div class="form-group">
+            <label>Fighter Image</label>
+            <input type="file" id="newFighterImage" accept="image/*">
+          </div>
+          <div class="form-group switch-wrapper">
+            <span>Retired</span>
+            <label class="switch">
+              <input type="checkbox" id="newFighterRetired">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <button onclick="addFighterAdmin()">Add Fighter</button>
+          </div>
+        </div>
+
+        <!-- Add Fight -->
+        <div class="card">
+          <h3>Add Fight</h3>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="fightDate">
+          </div>
+          <div class="form-group">
+            <label>Fighter 1</label>
+            <input type="text" id="fightSearch1" placeholder="Search Fighter 1">
+            <div id="fightResults1" class="search-results"></div>
+          </div>
+          <div class="form-group">
+            <label>Fighter 2</label>
+            <input type="text" id="fightSearch2" placeholder="Search Fighter 2">
+            <div id="fightResults2" class="search-results"></div>
+          </div>
+          <div class="form-group">
+            <label>Winner</label>
+            <select id="fightWinner">
+              <option value="draw">Draw</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Method</label>
+            <select id="fightMethod">
+              <option value="Decision">Decision</option>
+              <option value="KO">KO</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <button onclick="addFightAdmin()">Add Fight</button>
+          </div>
+        </div>
+
+        <!-- Edit Fighter -->
+        <div class="card">
+          <h3>Edit Fighter</h3>
+          <div class="form-group">
+            <label>Search Fighter</label>
+            <input type="text" id="editFighterSearch" placeholder="Search fighter to edit">
+            <div id="editFighterResults" class="search-results"></div>
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="editFighterName">
+          </div>
+          <div class="form-group">
+            <label>Weight Class</label>
+            <select id="editFighterWeight"></select>
+          </div>
+          <div class="form-group">
+            <label>Fighter Image</label>
+            <input type="file" id="editFighterImage" accept="image/*">
+          </div>
+          <div class="form-group switch-wrapper">
+            <span>Retired</span>
+            <label class="switch">
+              <input type="checkbox" id="editFighterRetired">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <button onclick="saveEditFighter()">Save Changes</button>
+          </div>
+        </div>
+
+        <!-- Edit Organization -->
+        <div class="card">
+          <h3>Edit Organization</h3>
+          <div class="form-group switch-wrapper">
+            <span>Enable KO Bonus</span>
+            <label class="switch">
+              <input type="checkbox" id="koBonusToggle" onchange="toggleKOBonus(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>New Weight Class</label>
+            <input type="text" id="newWeightClass" placeholder="Add weight class">
+            <button onclick="addWeightClass()">Add Weight Class</button>
+          </div>
+          <div id="weightClassList"></div>
+        </div>
+
+        <!-- Upload/Download JSON -->
+        <div class="card">
+          <h3>Upload / Download JSON</h3>
+          <div class="form-group">
+            <input type="file" id="uploadFile">
+            <button onclick="uploadJSON()">Upload JSON</button>
+            <button onclick="downloadJSON()">Download JSON</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </div>
+
+  <footer>
+    <p>© 2026 Joah van der Sloot</p>
+  </footer>
+
+  <script src="assets/js/script.js"></script>
+</body>
+
+</html>
