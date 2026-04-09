@@ -29,12 +29,14 @@ function showPage(pageId) {
         if (el) el.innerHTML = "";
     });
 
-    // Also clear fight selection
+    // Clear fight selection
     fightSelection = { f1: null, f2: null };
     const fightWinner = document.getElementById("fightWinner");
     if (fightWinner) fightWinner.innerHTML = '<option value="draw">Draw</option>';
-}
 
+    // Clear edit fighter fields when leaving page
+    clearEditFighterFields();
+}
 // ========================
 // ADMIN LOGIN
 // ========================
@@ -373,11 +375,16 @@ function populateEditFighter() {
     // select is removed, we use search input
     // automatically populate edit fields if fighter already selected
 }
-document.getElementById("editFighterSearch").addEventListener("input", () => {
-    const query = document.getElementById("editFighterSearch").value.toLowerCase();
-    const results = fighters.filter(f => f.name.toLowerCase().includes(query));
-    document.getElementById("editFighterResults").innerHTML = results.map(f =>
-        `<div class="fighter-row" onclick="selectFighterToEdit(${f.id})">${f.name} (${f.weightClass})</div>`).join('');
+window.addEventListener("DOMContentLoaded", () => {
+    const editInput = document.getElementById("editFighterSearch");
+    if (editInput) {
+        editInput.addEventListener("input", () => {
+            const query = editInput.value.toLowerCase();
+            const results = fighters.filter(f => f.name.toLowerCase().includes(query));
+            document.getElementById("editFighterResults").innerHTML = results.map(f =>
+                `<div class="fighter-row" onclick="selectFighterToEdit(${f.id})">${f.name} (${f.weightClass})</div>`).join('');
+        });
+    }
 });
 function selectFighterToEdit(id) {
     const f = getFighterById(id);
@@ -392,21 +399,20 @@ async function saveEditFighter() {
     const f = getFighterById(editFighterId);
     if (!f) return alert("No fighter selected");
 
-    const imageFile = document.getElementById("editFighterImage").files[0];
+    const imageFile = document.getElementById("editFighterImage")?.files[0];
 
     f.name = document.getElementById("editFighterName").value;
     f.weightClass = document.getElementById("editFighterWeight").value;
     f.retired = document.getElementById("editFighterRetired").checked;
 
-    let image = null;
     if (imageFile) {
-        image = await uploadImageToServer(imageFile);
+        const image = await uploadImageToServer(imageFile);
+        if (image) f.image = image;
     }
 
-    renderLeaderboard();
     saveData();
+    renderLeaderboard();
     alert("Fighter updated!");
-
     clearEditFighterFields();
 }
 
@@ -648,12 +654,12 @@ function saveData() {
 }
 async function uploadImageToServer(file) {
     // Detect if we are on a static localhost server (Live Server, file://, etc)
-    const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+    // const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
-    if (isLocalhost) {
-        alert("⚠️ You are on localhost/static server: the image cannot be uploaded. It will not be saved.");
-        return null; // fallback: no image
-    }
+    // if (isLocalhost) {
+    //     alert("⚠️ You are on localhost/static server: the image cannot be uploaded. It will not be saved.");
+    //     return null; // fallback: no image
+    // }
 
     // Normal upload for a real PHP/XAMPP server
     const formData = new FormData();
