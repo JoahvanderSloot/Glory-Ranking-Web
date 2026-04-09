@@ -211,7 +211,6 @@ function openFighter(id) {
 function renderFighterProfile(f) {
     document.getElementById("fighterName").innerText = f.name;
     document.getElementById("fighterStats").innerHTML = `
-  ${f.image ? `<img src="${f.image}" class="fighter-img">` : ""}
 
 <div class="stats-grid">
     <div><strong>Weight:</strong> ${f.weightClass}</div>
@@ -324,18 +323,11 @@ async function addFighterAdmin() {
     const name = document.getElementById("newFighterName").value.trim();
     const weight = document.getElementById("newFighterWeight").value;
     const retired = document.getElementById("newFighterRetired").checked;
-    const imageFile = document.getElementById("newFighterImage").files[0];
 
     if (!name || !weight) {
         alert("Please fill in all fields");
         return;
     }
-
-    let image = null;
-    if (imageFile) {
-        image = await uploadImageToServer(imageFile);
-    }
-
     const id = fighters.length ? Math.max(...fighters.map(f => f.id)) + 1 : 1;
 
     fighters.push({
@@ -343,7 +335,6 @@ async function addFighterAdmin() {
         name,
         weightClass: weight,
         retired,
-        image, // ✅ NEW
         elo: 1000,
         peakElo: 1000,
         eloKO: 1000,
@@ -399,16 +390,10 @@ async function saveEditFighter() {
     const f = getFighterById(editFighterId);
     if (!f) return alert("No fighter selected");
 
-    const imageFile = document.getElementById("editFighterImage")?.files[0];
 
     f.name = document.getElementById("editFighterName").value;
     f.weightClass = document.getElementById("editFighterWeight").value;
     f.retired = document.getElementById("editFighterRetired").checked;
-
-    if (imageFile) {
-        const image = await uploadImageToServer(imageFile);
-        if (image) f.image = image;
-    }
 
     saveData();
     renderLeaderboard();
@@ -651,26 +636,4 @@ function saveData() {
         fighters,
         weightClasses
     }));
-}
-async function uploadImageToServer(file) {
-    // Detect if we are on a static localhost server (Live Server, file://, etc)
-    // const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-
-    // if (isLocalhost) {
-    //     alert("⚠️ You are on localhost/static server: the image cannot be uploaded. It will not be saved.");
-    //     return null; // fallback: no image
-    // }
-
-    // Normal upload for a real PHP/XAMPP server
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const res = await fetch("server.php", {
-        method: "POST",
-        body: formData
-    });
-    if (!res.ok) throw new Error("Upload failed");
-
-    const data = await res.json();
-    return data.url; // saved image path
 }
