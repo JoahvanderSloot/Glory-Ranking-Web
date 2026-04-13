@@ -41,11 +41,11 @@
 
         <select id="weightFilter" onchange="renderLeaderboard()"></select>
 
-<label class="toggle">
-  <input type="checkbox" id="showRetiredToggle" checked onchange="renderLeaderboard()">
-  <div class="toggle-slider"></div>
-  <span>Retired</span>
-</label>
+        <label class="toggle">
+          <input type="checkbox" id="showRetiredToggle" checked onchange="renderLeaderboard()">
+          <div class="toggle-slider"></div>
+          <span>Retired</span>
+        </label>
 
       </div>
       <br>
@@ -110,6 +110,13 @@
           <div class="form-group">
             <label for="newFighterWeight">Weight Class</label>
             <select id="newFighterWeight"></select>
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="newFighterGender">
+              <option value="male" selected>Male</option>
+              <option value="female">Female</option>
+            </select>
           </div>
           <div class="form-group switch-wrapper">
             <span>Retired</span>

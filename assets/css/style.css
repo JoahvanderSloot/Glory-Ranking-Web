@@ -530,3 +530,16 @@ input:checked + .slider:before {
     color: #aaa;
     font-weight: bold;
 }
+.gender-badge {
+    margin-left: 6px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.gender-badge.male {
+    color: #4da3ff;
+}
+
+.gender-badge.female {
+    color: #ff4db8;
+}

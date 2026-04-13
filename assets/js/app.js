@@ -157,21 +157,25 @@ function renderLeaderboard() {
     container.innerHTML = filtered.map((f, index) => {
         const elo = Math.round(showKOBonus ? f.eloKO : f.elo);
 
-        // ✅ Show weight ONLY in "all" mode
-        const nameDisplay = selectedWeight === "all"
-            ? `${f.name} - ${f.weightClass}`
-            : f.name;
+        const genderTag = f.gender === "female" ? " (F)" : "";
 
-        // ✅ Retired indicator
+        const nameDisplay = selectedWeight === "all"
+            ? `${f.name}${genderTag} - ${f.weightClass}`
+            : `${f.name}${genderTag}`;
+
         const retiredTag = f.retired
             ? `<span class="retired-badge">RET</span>`
             : "";
+
+        const genderIcon = f.gender === "female"
+            ? `<span class="gender-badge female">♀</span>`
+            : `<span class="gender-badge male">♂</span>`;
 
         return `
         <div class="fighter-row ${f.retired ? 'retired' : ''}" onclick="openFighter(${f.id})">
             <span class="rank">#${index + 1}</span>
             <span class="name">
-                ${nameDisplay} ${retiredTag}
+                ${genderIcon} ${nameDisplay} ${retiredTag}
             </span>
             <span class="elo">${elo}</span>
         </div>
@@ -211,6 +215,7 @@ function renderFighterProfile(f) {
 
 <div class="stats-grid">
     <div><strong>Weight:</strong> ${f.weightClass}</div>
+    <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
     <div><strong>Record:</strong> ${f.wins}-${f.losses}</div>
     <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
     <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
@@ -320,9 +325,14 @@ async function addFighterAdmin() {
     const name = document.getElementById("newFighterName").value.trim();
     const weight = document.getElementById("newFighterWeight").value;
     const retired = document.getElementById("newFighterRetired").checked;
+    const gender = document.getElementById("newFighterGender").value || "male";
 
-    if (!name || !weight) {
-        alert("Please fill in all fields");
+    const exists = fighters.some(
+        f => f.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (exists) {
+        alert("Fighter already exists!");
         return;
     }
     const id = fighters.length ? Math.max(...fighters.map(f => f.id)) + 1 : 1;
@@ -330,6 +340,7 @@ async function addFighterAdmin() {
     fighters.push({
         id,
         name,
+        gender,
         weightClass: weight,
         retired,
         elo: 1000,
