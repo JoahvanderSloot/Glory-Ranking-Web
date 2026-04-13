@@ -56,7 +56,8 @@ function grantAccess(username) {
 // ========================
 // LOAD DATA
 // ========================
-import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { db } from "./firebase.js";
+import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 async function loadData() {
     try {
@@ -533,7 +534,7 @@ function uploadJSON() {
         try {
             const data = JSON.parse(e.target.result);
             fighters = data.fighters || []; weightClasses = data.weightClasses || weightClasses;
-            populateWeightClasses(); renderWeightClassList(); renderLeaderboard();
+            populateWeightClasses(); renderWeightClassList(); renderLeaderboard(); saveData();
             alert("JSON loaded successfully!");
         } catch (err) { alert("Invalid JSON"); }
     };
@@ -627,9 +628,6 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     if (currentFighter) renderFighterProfile(currentFighter);
     saveData();
 }
-import { db } from "./firebase.js";
-import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 async function saveData() {
     try {
         await setDoc(doc(db, "data", "fighters"), {
@@ -641,3 +639,19 @@ async function saveData() {
         console.error("Error saving:", e);
     }
 }
+
+window.showPage = showPage;
+window.searchFighter = searchFighter;
+window.openFighter = openFighter;
+window.addFighterAdmin = addFighterAdmin;
+window.addFightAdmin = addFightAdmin;
+window.saveEditFighter = saveEditFighter;
+window.Login = Login;
+window.removeWeightClass = removeWeightClass;
+window.addWeightClass = addWeightClass;
+window.renderLeaderboard = renderLeaderboard;
+window.toggleKOBonus = toggleKOBonus;
+window.downloadJSON = downloadJSON;
+window.uploadJSON = uploadJSON;
+window.selectFightFighter = selectFightFighter;
+window.selectFighterToEdit = selectFighterToEdit;
