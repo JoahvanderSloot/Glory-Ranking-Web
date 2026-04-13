@@ -135,6 +135,7 @@ function renderLeaderboard() {
 
     const selectedWeight = document.getElementById("weightFilter")?.value || "all";
     const showRetired = document.getElementById("showRetiredToggle")?.checked;
+    const selectedGender = document.getElementById("genderFilter")?.value || "all";
 
     let filtered = [...fighters];
 
@@ -147,6 +148,11 @@ function renderLeaderboard() {
     if (!showRetired) {
         filtered = filtered.filter(f => !f.retired);
     }
+
+    // 🔹 Filter gender
+if (selectedGender !== "all") {
+    filtered = filtered.filter(f => f.gender === selectedGender);
+}
 
     // 🔹 Sort
     filtered.sort((a, b) =>

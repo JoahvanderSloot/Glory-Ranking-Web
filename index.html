@@ -39,7 +39,19 @@
       <h2>Leaderboard</h2>
       <div class="leaderboard-controls">
 
-        <select id="weightFilter" onchange="renderLeaderboard()"></select>
+        <div class="filter-pill">
+          <span class="filter-icon">⚖️</span>
+          <select id="weightFilter" onchange="renderLeaderboard()"></select>
+        </div>
+
+        <div class="filter-pill">
+          <span class="filter-icon">⚥</span>
+          <select id="genderFilter" onchange="renderLeaderboard()">
+            <option value="all">All</option>
+            <option value="male">♂ Male</option>
+            <option value="female">♀ Female</option>
+          </select>
+        </div>
 
         <label class="toggle">
           <input type="checkbox" id="showRetiredToggle" checked onchange="renderLeaderboard()">

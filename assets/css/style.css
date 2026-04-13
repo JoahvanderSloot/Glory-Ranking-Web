@@ -543,3 +543,14 @@ input:checked + .slider:before {
 .gender-badge.female {
     color: #ff4db8;
 }
+
+.filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-icon {
+  font-size: 14px;
+  opacity: 0.8;
+}
