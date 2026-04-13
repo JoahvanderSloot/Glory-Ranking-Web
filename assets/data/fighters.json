@@ -1,0 +1,11 @@
+{
+  "fighters": [
+  ],
+  "weightClasses": [
+    "Heavyweight",
+    "Lightweight",
+    "Middleweight",
+    "Welterweight",
+    "Featherweight"
+  ]
+}
