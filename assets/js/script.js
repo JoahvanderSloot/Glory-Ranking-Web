@@ -56,25 +56,25 @@ function grantAccess(username) {
 // ========================
 // LOAD DATA
 // ========================
-async function loadData() {
-    const local = localStorage.getItem("fightersData");
+import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    if (local) {
-        const data = JSON.parse(local);
-        fighters = data.fighters || [];
-        weightClasses = data.weightClasses || weightClasses;
-    } else {
-        try {
-            const response = await fetch("assets/data/fighters.json");
-            const data = await response.json();
+async function loadData() {
+    try {
+        const docRef = doc(db, "data", "fighters");
+        const snapshot = await getDoc(docRef);
+
+        if (snapshot.exists()) {
+            const data = snapshot.data();
             fighters = data.fighters || [];
             weightClasses = data.weightClasses || weightClasses;
-        } catch (e) {
-            console.warn("Failed to load JSON.");
+        } else {
+            console.warn("No Firebase data found, using defaults");
         }
+    } catch (e) {
+        console.error("Error loading:", e);
     }
 
-    // Initialize KO fields if missing (for old data)
+    // KEEP THIS PART
     fighters.forEach(f => {
         if (f.eloKO === undefined) f.eloKO = f.elo;
         if (f.peakEloKO === undefined) f.peakEloKO = f.peakElo;
@@ -82,10 +82,6 @@ async function loadData() {
             if (ft.eloKO === undefined) ft.eloKO = ft.elo;
         });
     });
-
-    // Load KO toggle from localStorage (optional)
-    const savedKOBonus = localStorage.getItem("showKOBonus");
-    if (savedKOBonus !== null) showKOBonus = savedKOBonus === "true";
 
     populateWeightClasses();
     renderLeaderboard();
@@ -631,9 +627,17 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     if (currentFighter) renderFighterProfile(currentFighter);
     saveData();
 }
-function saveData() {
-    localStorage.setItem("fightersData", JSON.stringify({
-        fighters,
-        weightClasses
-    }));
+import { db } from "./firebase.js";
+import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+async function saveData() {
+    try {
+        await setDoc(doc(db, "data", "fighters"), {
+            fighters,
+            weightClasses
+        });
+        console.log("Data saved to Firebase");
+    } catch (e) {
+        console.error("Error saving:", e);
+    }
 }
