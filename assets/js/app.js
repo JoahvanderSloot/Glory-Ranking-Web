@@ -76,9 +76,17 @@ async function loadData() {
     }
 
     fighters.forEach(f => {
+<<<<<<< Updated upstream:assets/js/app.js
         if (f.draws === undefined) f.draws = 0;
     });
 
+=======
+        if (f.biggestGainKO === undefined) f.biggestGainKO = f.biggestGain;
+        if (f.biggestLossKO === undefined) f.biggestLossKO = f.biggestLoss;
+    });
+
+    // Initialize KO fields if missing (for old data)
+>>>>>>> Stashed changes:assets/js/script.js
     fighters.forEach(f => {
         if (f.eloKO === undefined) f.eloKO = f.elo;
         if (f.peakEloKO === undefined) f.peakEloKO = f.peakElo;
@@ -237,8 +245,8 @@ function renderFighterProfile(f) {
         }</div>
     <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
     <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
-    <div><strong>Biggest Gain:</strong> +${f.biggestGain}</div>
-    <div><strong>Biggest Loss:</strong> ${f.biggestLoss}</div>
+    <div><strong>Biggest Gain:</strong> +${showKOBonus ? f.biggestGainKO : f.biggestGain}</div>
+    <div><strong>Biggest Loss:</strong> ${showKOBonus ? f.biggestLossKO : f.biggestLoss}</div>
     <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
 </div>
   `;
@@ -365,8 +373,12 @@ async function addFighterAdmin() {
         peakElo: 1000,
         eloKO: 1000,
         peakEloKO: 1000,
+
         biggestGain: 0,
         biggestLoss: 0,
+        biggestGainKO: 0,
+        biggestLossKO: 0,
+
         wins: 0,
         losses: 0,
         draws: 0,
@@ -634,10 +646,15 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     // =======================
     // Biggest gain/loss (KO version)
     // =======================
-    if (eloChangeKOF1 > f1.biggestGain) f1.biggestGain = eloChangeKOF1;
-    if (eloChangeKOF2 > f2.biggestGain) f2.biggestGain = eloChangeKOF2;
-    if (eloChangeKOF1 < f1.biggestLoss) f1.biggestLoss = eloChangeKOF1;
-    if (eloChangeKOF2 < f2.biggestLoss) f2.biggestLoss = eloChangeKOF2;
+    if (eloChangeNormalF1 > f1.biggestGain) f1.biggestGain = eloChangeNormalF1;
+    if (eloChangeNormalF2 > f2.biggestGain) f2.biggestGain = eloChangeNormalF2;
+    if (eloChangeNormalF1 < f1.biggestLoss) f1.biggestLoss = eloChangeNormalF1;
+    if (eloChangeNormalF2 < f2.biggestLoss) f2.biggestLoss = eloChangeNormalF2;
+
+    if (eloChangeKOF1 > f1.biggestGainKO) f1.biggestGainKO = eloChangeKOF1;
+    if (eloChangeKOF2 > f2.biggestGainKO) f2.biggestGainKO = eloChangeKOF2;
+    if (eloChangeKOF1 < f1.biggestLossKO) f1.biggestLossKO = eloChangeKOF1;
+    if (eloChangeKOF2 < f2.biggestLossKO) f2.biggestLossKO = eloChangeKOF2;
 
     // Inside addFight, after calculating both Elo versions:
 
