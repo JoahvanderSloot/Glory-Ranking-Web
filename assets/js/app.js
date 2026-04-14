@@ -75,10 +75,17 @@ async function loadData() {
         console.error("Error loading:", e);
     }
 
-    // KEEP THIS PART
+    fighters.forEach(f => {
+        if (f.draws === undefined) f.draws = 0;
+    });
+
     fighters.forEach(f => {
         if (f.eloKO === undefined) f.eloKO = f.elo;
         if (f.peakEloKO === undefined) f.peakEloKO = f.peakElo;
+
+        // ✅ ADD THIS LINE
+        f.draws = f.draws || 0;
+
         f.fights.forEach(ft => {
             if (ft.eloKO === undefined) ft.eloKO = ft.elo;
         });
@@ -150,9 +157,9 @@ function renderLeaderboard() {
     }
 
     // 🔹 Filter gender
-if (selectedGender !== "all") {
-    filtered = filtered.filter(f => f.gender === selectedGender);
-}
+    if (selectedGender !== "all") {
+        filtered = filtered.filter(f => f.gender === selectedGender);
+    }
 
     // 🔹 Sort
     filtered.sort((a, b) =>
@@ -173,9 +180,13 @@ if (selectedGender !== "all") {
             ? `<span class="retired-badge">RET</span>`
             : "";
 
-        const genderIcon = f.gender === "female"
-            ? `<span class="gender-badge female">♀</span>`
-            : `<span class="gender-badge male">♂</span>`;
+        let genderIcon = "";
+
+        if (selectedGender === "all") {
+            genderIcon = f.gender === "female"
+                ? `<span class="gender-badge female">♀</span>`
+                : `<span class="gender-badge male">♂</span>`;
+        }
 
         return `
         <div class="fighter-row ${f.retired ? 'retired' : ''}" onclick="openFighter(${f.id})">
@@ -222,7 +233,10 @@ function renderFighterProfile(f) {
 <div class="stats-grid">
     <div><strong>Weight:</strong> ${f.weightClass}</div>
     <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
-    <div><strong>Record:</strong> ${f.wins}-${f.losses}</div>
+    <div><strong>Record:</strong> ${f.draws > 0
+            ? `${f.wins}-${f.losses}-${f.draws}`
+            : `${f.wins}-${f.losses}`
+        }</div>
     <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
     <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
     <div><strong>Biggest Gain:</strong> +${f.biggestGain}</div>
@@ -357,6 +371,7 @@ async function addFighterAdmin() {
         biggestLoss: 0,
         wins: 0,
         losses: 0,
+        draws: 0,
         fights: []
     });
 
@@ -373,13 +388,6 @@ function clearAddFighterFields() {
     document.getElementById("newFighterRetired").checked = false;
 }
 
-// ========================
-// ADMIN: EDIT FIGHTER
-// ========================
-function populateEditFighter() {
-    // select is removed, we use search input
-    // automatically populate edit fields if fighter already selected
-}
 window.addEventListener("DOMContentLoaded", () => {
     const editInput = document.getElementById("editFighterSearch");
     if (editInput) {
@@ -551,6 +559,9 @@ function uploadJSON() {
         try {
             const data = JSON.parse(e.target.result);
             fighters = data.fighters || []; weightClasses = data.weightClasses || weightClasses;
+            fighters.forEach(f => {
+                f.draws = f.draws || 0;
+            });
             populateWeightClasses(); renderWeightClassList(); renderLeaderboard(); saveData();
             alert("JSON loaded successfully!");
         } catch (err) { alert("Invalid JSON"); }
@@ -570,9 +581,18 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     // =======================
     // NORMAL ELO (no KO bonus)
     // =======================
-    let scoreF1 = 0.5, scoreF2 = 0.5; // default draw
-    if (winnerId === f1Id) scoreF1 = 1, scoreF2 = 0;
-    else if (winnerId === f2Id) scoreF1 = 0, scoreF2 = 1;
+    if (winnerId === f1Id) {
+        f1.wins++;
+        f2.losses++;
+    }
+    else if (winnerId === f2Id) {
+        f2.wins++;
+        f1.losses++;
+    }
+    else {
+        f1.draws = (f1.draws || 0) + 1;
+        f2.draws = (f2.draws || 0) + 1;
+    }
 
     // If draw, halve the Elo change
     const isDraw = winnerId === null;
