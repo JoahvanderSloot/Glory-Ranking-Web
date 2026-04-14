@@ -170,11 +170,9 @@ function renderLeaderboard() {
     container.innerHTML = filtered.map((f, index) => {
         const elo = Math.round(showKOBonus ? f.eloKO : f.elo);
 
-        const genderTag = f.gender === "female" ? " (F)" : "";
-
         const nameDisplay = selectedWeight === "all"
-            ? `${f.name}${genderTag} - ${f.weightClass}`
-            : `${f.name}${genderTag}`;
+            ? `${f.name} - ${f.weightClass}`
+            : `${f.name}`;
 
         const retiredTag = f.retired
             ? `<span class="retired-badge">RET</span>`
