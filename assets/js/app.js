@@ -598,6 +598,20 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     const isDraw = winnerId === null;
     const drawMultiplier = isDraw ? 0.5 : 1;
 
+    let scoreF1, scoreF2;
+
+    if (winnerId === f1Id) {
+        scoreF1 = 1;
+        scoreF2 = 0;
+    } else if (winnerId === f2Id) {
+        scoreF1 = 0;
+        scoreF2 = 1;
+    } else {
+        // draw
+        scoreF1 = 0.5;
+        scoreF2 = 0.5;
+    }
+
     const eloChangeNormalF1 = Math.round(k * drawMultiplier * (scoreF1 - expectedF1));
     const eloChangeNormalF2 = Math.round(k * drawMultiplier * (scoreF2 - expectedF2));
 
@@ -618,12 +632,6 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
 
     if (f1.eloKO > f1.peakEloKO) f1.peakEloKO = f1.eloKO;
     if (f2.eloKO > f2.peakEloKO) f2.peakEloKO = f2.eloKO;
-
-    // =======================
-    // Wins / Losses
-    // =======================
-    if (winnerId === f1Id) f1.wins++, f2.losses++;
-    else if (winnerId === f2Id) f2.wins++, f1.losses++;
 
     // =======================
     // Biggest gain/loss (KO version)
