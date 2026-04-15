@@ -549,9 +549,19 @@ function renderWeightClassList() {
 // ========================
 // ADMIN: UPLOAD/DOWNLOAD JSON
 // ========================
-function downloadJSON() {
-    const blob = new Blob([JSON.stringify({ fighters, weightClasses }, null, 2)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "fighters.json"; a.click();
+async function downloadJSON() {
+    const snapshot = await getDoc(doc(db, "data", "fighters"));
+    const data = snapshot.data();
+
+    const blob = new Blob(
+        [JSON.stringify(data, null, 2)],
+        { type: "application/json" }
+    );
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fighters.json";
+    a.click();
 }
 function uploadJSON() {
     const file = document.getElementById("uploadFile").files[0];
