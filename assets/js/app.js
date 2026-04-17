@@ -237,8 +237,6 @@ function renderFighterProfile(f) {
         }</div>
     <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
     <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
-    <div><strong>Biggest Gain:</strong> +${f.biggestGain}</div>
-    <div><strong>Biggest Loss:</strong> ${f.biggestLoss}</div>
     <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
 </div>
   `;
