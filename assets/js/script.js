@@ -2,7 +2,7 @@
 // GLOBAL DATA
 // ========================
 let fighters = [];
-let weightClasses = ["Lightweight", "Welterweight", "Middleweight", "Heavyweight"];
+let weightClasses = ["Lightweight", "Welterweight", "Middleweight", "Light Heavyweight", "Heavyweight"];
 let currentFighter = null;
 let eloChart = null;
 let showKOBonus = false;
@@ -83,7 +83,6 @@ async function loadData() {
         if (f.eloKO === undefined) f.eloKO = f.elo;
         if (f.peakEloKO === undefined) f.peakEloKO = f.peakElo;
 
-        // ✅ ADD THIS LINE
         f.draws = f.draws || 0;
 
         f.fights.forEach(ft => {
@@ -237,13 +236,9 @@ function renderFighterProfile(f) {
         }</div>
     <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
     <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
-    <div><strong>Biggest Gain:</strong> +${showKOBonus ? f.biggestGainKO : f.biggestGain}</div>
-    <div><strong>Biggest Loss:</strong> ${showKOBonus ? f.biggestLossKO : f.biggestLoss}</div>
     <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
 </div>
   `;
-    renderFightHistory(f.fights);
-    renderEloChart(f.fights);
 }
 function renderFightHistory(fights) {
     const isMobile = window.innerWidth <= 768; // mobile breakpoint
@@ -365,12 +360,6 @@ async function addFighterAdmin() {
         peakElo: 1000,
         eloKO: 1000,
         peakEloKO: 1000,
-
-        biggestGain: 0,
-        biggestLoss: 0,
-        biggestGainKO: 0,
-        biggestLossKO: 0,
-
         wins: 0,
         losses: 0,
         draws: 0,
@@ -383,7 +372,6 @@ async function addFighterAdmin() {
     clearAddFighterFields();
     alert("Fighter added!");
 }
-
 function clearAddFighterFields() {
     document.getElementById("newFighterName").value = "";
     document.getElementById("newFighterWeight").selectedIndex = 0;
@@ -580,19 +568,15 @@ function uploadJSON() {
     };
     reader.readAsText(file);
 }
-
 function addFight(f1Id, f2Id, winnerId, method, date) {
     const f1 = getFighterById(f1Id);
     const f2 = getFighterById(f2Id);
     if (!f1 || !f2) return;
 
-    const k = 32; // Elo factor
+    const k = 32;
     const expectedF1 = 1 / (1 + Math.pow(10, (f2.elo - f1.elo) / 400));
     const expectedF2 = 1 / (1 + Math.pow(10, (f1.elo - f2.elo) / 400));
 
-    // =======================
-    // NORMAL ELO (no KO bonus)
-    // =======================
     if (winnerId === f1Id) {
         f1.wins++;
         f2.losses++;
@@ -606,7 +590,6 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
         f2.draws = (f2.draws || 0) + 1;
     }
 
-    // If draw, halve the Elo change
     const isDraw = winnerId === null;
     const drawMultiplier = isDraw ? 0.5 : 1;
 
@@ -619,7 +602,6 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
         scoreF1 = 0;
         scoreF2 = 1;
     } else {
-        // draw
         scoreF1 = 0.5;
         scoreF2 = 0.5;
     }
@@ -629,13 +611,11 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
 
     f1.elo += eloChangeNormalF1;
     f2.elo += eloChangeNormalF2;
+
     if (f1.elo > f1.peakElo) f1.peakElo = f1.elo;
     if (f2.elo > f2.peakElo) f2.peakElo = f2.elo;
 
-    // =======================
-    // KO ELO (winner gains more, loser loses more if KO)
-    // =======================
-    let koMultiplier = (method === "KO") ? 1.5 : 1; // 50% more Elo change for KOs
+    let koMultiplier = (method === "KO") ? 1.5 : 1;
     const eloChangeKOF1 = Math.round(eloChangeNormalF1 * koMultiplier);
     const eloChangeKOF2 = Math.round(eloChangeNormalF2 * koMultiplier);
 
@@ -645,29 +625,13 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
     if (f1.eloKO > f1.peakEloKO) f1.peakEloKO = f1.eloKO;
     if (f2.eloKO > f2.peakEloKO) f2.peakEloKO = f2.eloKO;
 
-    // =======================
-    // Biggest gain/loss (KO version)
-    // =======================
-    if (eloChangeNormalF1 > f1.biggestGain) f1.biggestGain = eloChangeNormalF1;
-    if (eloChangeNormalF2 > f2.biggestGain) f2.biggestGain = eloChangeNormalF2;
-    if (eloChangeNormalF1 < f1.biggestLoss) f1.biggestLoss = eloChangeNormalF1;
-    if (eloChangeNormalF2 < f2.biggestLoss) f2.biggestLoss = eloChangeNormalF2;
-
-    if (eloChangeKOF1 > f1.biggestGainKO) f1.biggestGainKO = eloChangeKOF1;
-    if (eloChangeKOF2 > f2.biggestGainKO) f2.biggestGainKO = eloChangeKOF2;
-    if (eloChangeKOF1 < f1.biggestLossKO) f1.biggestLossKO = eloChangeKOF1;
-    if (eloChangeKOF2 < f2.biggestLossKO) f2.biggestLossKO = eloChangeKOF2;
-
-    // Inside addFight, after calculating both Elo versions:
-
-    // === FIGHT HISTORY ===
     f1.fights.push({
         opponentId: f2Id,
         date,
         result: scoreF1 > scoreF2 ? "win" : scoreF1 < scoreF2 ? "loss" : "draw",
         method,
-        eloChange: eloChangeNormalF1,   // normal Elo change
-        eloChangeKO: eloChangeKOF1,     // KO-adjusted Elo change
+        eloChange: eloChangeNormalF1,
+        eloChangeKO: eloChangeKOF1,
         elo: f1.elo,
         eloKO: f1.eloKO
     });
@@ -683,9 +647,6 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
         eloKO: f2.eloKO
     });
 
-    // =======================
-    // Refresh views
-    // =======================
     renderLeaderboard();
     if (currentFighter) renderFighterProfile(currentFighter);
     saveData();
