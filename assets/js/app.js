@@ -67,6 +67,7 @@ async function loadData() {
         if (snapshot.exists()) {
             const data = snapshot.data();
             fighters = data.fighters || [];
+            window.fighters = fighters;
             weightClasses = data.weightClasses || weightClasses;
         } else {
             console.warn("No Firebase data found, using defaults");
@@ -213,6 +214,55 @@ function searchFighter() {
     const results = fighters.filter(f => f.name.toLowerCase().includes(query));
     box.innerHTML = results.map(f => `<div class="fighter-row" onclick="openFighter(${f.id})">${f.name} (${f.weightClass})</div>`).join("");
 }
+
+function searchPrediction1() {
+    const query = document.getElementById("predictionSearch1").value.toLowerCase();
+    const box = document.getElementById("predictionResults1");
+
+    const results = fighters.filter(f => 
+        f.name.toLowerCase().includes(query)
+    );
+
+   box.innerHTML = results.map(f =>
+    `<div class="fighter-row" onclick="selectPredictionFighter(1, ${f.id})">
+        ${f.name} (${f.weightClass})
+    </div>`
+).join("");
+}
+
+
+function searchPrediction2() {
+    const query = document.getElementById("predictionSearch2").value.toLowerCase();
+    const box = document.getElementById("predictionResults2");
+
+    const results = fighters.filter(f => 
+        f.name.toLowerCase().includes(query)
+    );
+
+box.innerHTML = results.map(f =>
+    `<div class="fighter-row" onclick="selectPredictionFighter(2, ${f.id})">
+        ${f.name} (${f.weightClass})
+    </div>`
+).join("");
+}
+
+function selectPredictionFighter(number, id) {
+    const fighter = fighters.find(f => f.id === id);
+
+    if (!fighter) return;
+
+    document.getElementById(`predictionSearch${number}`).value = fighter.name;
+    document.getElementById(`predictionResults${number}`).innerHTML = "";
+}
+
+function closePredictionDropdown(number) {
+    setTimeout(() => {
+        document.getElementById(`predictionResults${number}`).innerHTML = "";
+    }, 150);
+}
+
+window.closePredictionDropdown = closePredictionDropdown;
+window.selectPredictionFighter = selectPredictionFighter;
 
 // ========================
 // FIGHTER PROFILE
@@ -696,3 +746,6 @@ window.downloadJSON = downloadJSON;
 window.uploadJSON = uploadJSON;
 window.selectFightFighter = selectFightFighter;
 window.selectFighterToEdit = selectFighterToEdit;
+window.searchPrediction1 = searchPrediction1;
+window.searchPrediction2 = searchPrediction2;
+window.fighters = fighters;
