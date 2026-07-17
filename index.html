@@ -107,428 +107,415 @@
     </div>
   </div>
 
-  <!-- Predictions Page -->
-  <div id="predictions" class="page">
-    <div class="container">
-      <h2>
-        Fight Prediction
-        <span class="info-icon" title="This prediction system estimates fight outcomes using available statistics, fighting styles and physical information. It is not guaranteed and should not be used for betting.">
-          ⓘ
-        </span>
-      </h2>
+<!-- Predictions Page -->
+<div id="predictions" class="page">
+  <div class="container">
+    <h2>
+      Fight Prediction
+      <span class="info-icon" data-tooltip="Estimates fight outcomes using available stats, fighting styles, and physical traits. It is not guaranteed and should never be used for betting or gambling.">ⓘ</span>
+    </h2>
 
-      <!-- Sticky fighter bar -->
-      <div class="prediction-sticky">
-        <div class="sticky-fighter-input">
-          <label>Fighter 1</label>
-          <input id="predictionSearch1" placeholder="Search fighter..." oninput="searchPrediction1()" onblur="closePredictionDropdown(1)">
+    <!-- Sticky fighter bar wrapper -->
+    <div class="prediction-sticky">
+      <div class="sticky-fighter-input">
+        <label id="styleName1">Fighter 1</label> 
+        <div class="search-container">
+          <input type="text" id="predictionSearch1" oninput="searchPrediction1()" onblur="closePredictionDropdown(1)" placeholder="Search fighter name..." autocomplete="off">
           <div id="predictionResults1" class="search-results"></div>
         </div>
-        <div class="vs">VS</div>
-        <div class="sticky-fighter-input">
-          <label>Fighter 2</label>
-          <input id="predictionSearch2" placeholder="Search fighter..." oninput="searchPrediction2()" onblur="closePredictionDropdown(2)">
+      </div>
+
+      <div class="vs">VS</div>
+
+      <div class="sticky-fighter-input">
+        <label id="styleName2">Fighter 2</label>
+        <div class="search-container">
+          <input type="text" id="predictionSearch2" oninput="searchPrediction2()" onblur="closePredictionDropdown(2)" placeholder="Search fighter name..." autocomplete="off">
           <div id="predictionResults2" class="search-results"></div>
         </div>
-        <button id="calculatePrediction" disabled onclick="calculatePrediction()">
-          Calculate Prediction
-        </button>
       </div>
 
-      <div class="card">
-        <h3>
-          Style Information
-          <span class="info-icon" title="Select the characteristics that describe the fighter. Multiple options can be selected where appropriate.">
-            ⓘ
-          </span>
-        </h3>
+      <button id="calculatePrediction" disabled onclick="calculatePrediction()">
+        Calculate Prediction
+      </button>
+    </div>
 
-        <div class="prediction-table">
-          <div class="prediction-header">
-            <div>Category</div>
-            <div id="styleName1">Fighter 1</div>
-            <div id="styleName2">Fighter 2</div>
-          </div>
+    <!-- STYLE INFORMATION CARD -->
+    <div class="card">
+      <h3>
+        Style Information
+        <span class="info-icon" data-tooltip="Select descriptive fight characteristics. Filling out as much accurate information as possible makes the simulation more exact, though unselected values default to an average baseline.">ⓘ</span>
+      </h3>
 
-          <!-- STANCE -->
-          <div class="prediction-row">
-            <label>Stance <span class="info-icon" title="The fighter's preferred stance.">ⓘ</span></label>
-            <select id="style1_stance">
-              <option value="">Unknown</option>
-              <option value="Orthodox">Orthodox</option>
-              <option value="Southpaw">Southpaw</option>
-              <option value="Switch">Switch</option>
-            </select>
-            <select id="style2_stance">
-              <option value="">Unknown</option>
-              <option value="Orthodox">Orthodox</option>
-              <option value="Southpaw">Southpaw</option>
-              <option value="Switch">Switch</option>
-            </select>
-          </div>
+      <div class="prediction-table">
+        <div class="prediction-header">
+          <div>Category</div>
+          <div class="fighter-name-label-1">Fighter 1</div>
+          <div class="fighter-name-label-2">Fighter 2</div>
+        </div>
 
-          <!-- MOVEMENT (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Movement <span class="info-icon" title="How the fighter moves and controls distance.">ⓘ</span></label>
-            <div class="custom-multiselect" id="multiselect_style1_movement">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_movement')">
-                <input type="text" placeholder="Unknown" readonly id="style1_movement_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Pressure" onchange="updateMultiselect('style1_movement')"> Pressure</label>
-                <label><input type="checkbox" value="Mobile" onchange="updateMultiselect('style1_movement')"> Mobile</label>
-                <label><input type="checkbox" value="Counter" onchange="updateMultiselect('style1_movement')"> Counter</label>
-                <label><input type="checkbox" value="Back Foot" onchange="updateMultiselect('style1_movement')"> Back Foot</label>
-                <label><input type="checkbox" value="Lateral" onchange="updateMultiselect('style1_movement')"> Lateral</label>
-                <label><input type="checkbox" value="Planted" onchange="updateMultiselect('style1_movement')"> Planted</label>
-                <label><input type="checkbox" value="Blitz" onchange="updateMultiselect('style1_movement')"> Blitz</label>
-                <label><input type="checkbox" value="Ring Cutter" onchange="updateMultiselect('style1_movement')"> Ring Cutter</label>
-              </div>
+        <!-- STANCE -->
+        <div class="prediction-row">
+          <label>Stance <span class="info-icon" data-tooltip="The fighter's primary operational stance. Impacts stance matchups (e.g., Orthodox vs. Southpaw open-guard dynamics).">ⓘ</span></label>
+          <select id="style1_stance">
+            <option value="">Unknown</option>
+            <option value="Orthodox">Orthodox</option>
+            <option value="Southpaw">Southpaw</option>
+            <option value="Switch">Switch</option>
+          </select>
+          <select id="style2_stance">
+            <option value="">Unknown</option>
+            <option value="Orthodox">Orthodox</option>
+            <option value="Southpaw">Southpaw</option>
+            <option value="Switch">Switch</option>
+          </select>
+        </div>
+
+        <!-- MOVEMENT -->
+        <div class="prediction-row">
+          <label>Movement <span class="info-icon" data-tooltip="How the fighter maneuvers, commands ring generalship, handles footwork, and manages distance control.">ⓘ</span></label>
+          <div class="custom-multiselect" id="multiselect_style1_movement">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style1_movement')">
+              <input type="text" placeholder="Unknown" readonly id="style1_movement_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_movement">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_movement')">
-                <input type="text" placeholder="Unknown" readonly id="style2_movement_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Pressure" onchange="updateMultiselect('style2_movement')"> Pressure</label>
-                <label><input type="checkbox" value="Mobile" onchange="updateMultiselect('style2_movement')"> Mobile</label>
-                <label><input type="checkbox" value="Counter" onchange="updateMultiselect('style2_movement')"> Counter</label>
-                <label><input type="checkbox" value="Back Foot" onchange="updateMultiselect('style2_movement')"> Back Foot</label>
-                <label><input type="checkbox" value="Lateral" onchange="updateMultiselect('style2_movement')"> Lateral</label>
-                <label><input type="checkbox" value="Planted" onchange="updateMultiselect('style2_movement')"> Planted</label>
-                <label><input type="checkbox" value="Blitz" onchange="updateMultiselect('style2_movement')"> Blitz</label>
-                <label><input type="checkbox" value="Ring Cutter" onchange="updateMultiselect('style2_movement')"> Ring Cutter</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Pressure" onchange="updateMultiselect('style1_movement')"> Pressure</label>
+              <label><input type="checkbox" value="Mobile" onchange="updateMultiselect('style1_movement')"> Mobile</label>
+              <label><input type="checkbox" value="Counter" onchange="updateMultiselect('style1_movement')"> Counter</label>
+              <label><input type="checkbox" value="Back Foot" onchange="updateMultiselect('style1_movement')"> Back Foot</label>
+              <label><input type="checkbox" value="Lateral" onchange="updateMultiselect('style1_movement')"> Lateral</label>
+              <label><input type="checkbox" value="Planted" onchange="updateMultiselect('style1_movement')"> Planted</label>
+              <label><input type="checkbox" value="Blitz" onchange="updateMultiselect('style1_movement')"> Blitz</label>
+              <label><input type="checkbox" value="Ring Cutter" onchange="updateMultiselect('style1_movement')"> Ring Cutter</label>
             </div>
           </div>
-
-          <!-- RANGE -->
-          <div class="prediction-row">
-            <label>Range</label>
-            <select id="style1_range">
-              <option value="">Unknown</option>
-              <option value="Long">Long</option>
-              <option value="Mid">Mid</option>
-              <option value="Pocket">Pocket</option>
-              <option value="Clinch">Clinch</option>
-            </select>
-            <select id="style2_range">
-              <option value="">Unknown</option>
-              <option value="Long">Long</option>
-              <option value="Mid">Mid</option>
-              <option value="Pocket">Pocket</option>
-              <option value="Clinch">Clinch</option>
-            </select>
-          </div>
-
-          <!-- STRIKING IDENTITY (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Striking Identity</label>
-            <div class="custom-multiselect" id="multiselect_style1_identity">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_identity')">
-                <input type="text" placeholder="Unknown" readonly id="style1_identity_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Power" onchange="updateMultiselect('style1_identity')"> Power</label>
-                <label><input type="checkbox" value="Volume" onchange="updateMultiselect('style1_identity')"> Volume</label>
-                <label><input type="checkbox" value="Precision" onchange="updateMultiselect('style1_identity')"> Precision</label>
-                <label><input type="checkbox" value="Technical" onchange="updateMultiselect('style1_identity')"> Technical</label>
-                <label><input type="checkbox" value="Unorthodox" onchange="updateMultiselect('style1_identity')"> Unorthodox</label>
-              </div>
+          <div class="custom-multiselect" id="multiselect_style2_movement">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style2_movement')">
+              <input type="text" placeholder="Unknown" readonly id="style2_movement_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_identity">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_identity')">
-                <input type="text" placeholder="Unknown" readonly id="style2_identity_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Power" onchange="updateMultiselect('style2_identity')"> Power</label>
-                <label><input type="checkbox" value="Volume" onchange="updateMultiselect('style2_identity')"> Volume</label>
-                <label><input type="checkbox" value="Precision" onchange="updateMultiselect('style2_identity')"> Precision</label>
-                <label><input type="checkbox" value="Technical" onchange="updateMultiselect('style2_identity')"> Technical</label>
-                <label><input type="checkbox" value="Unorthodox" onchange="updateMultiselect('style2_identity')"> Unorthodox</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Pressure" onchange="updateMultiselect('style2_movement')"> Pressure</label>
+              <label><input type="checkbox" value="Mobile" onchange="updateMultiselect('style2_movement')"> Mobile</label>
+              <label><input type="checkbox" value="Counter" onchange="updateMultiselect('style2_movement')"> Counter</label>
+              <label><input type="checkbox" value="Back Foot" onchange="updateMultiselect('style2_movement')"> Back Foot</label>
+              <label><input type="checkbox" value="Lateral" onchange="updateMultiselect('style2_movement')"> Lateral</label>
+              <label><input type="checkbox" value="Planted" onchange="updateMultiselect('style2_movement')"> Planted</label>
+              <label><input type="checkbox" value="Blitz" onchange="updateMultiselect('style2_movement')"> Blitz</label>
+              <label><input type="checkbox" value="Ring Cutter" onchange="updateMultiselect('style2_movement')"> Ring Cutter</label>
             </div>
           </div>
+        </div>
 
-          <!-- TARGET (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Target</label>
-            <div class="custom-multiselect" id="multiselect_style1_target">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_target')">
-                <input type="text" placeholder="Unknown" readonly id="style1_target_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Head" onchange="updateMultiselect('style1_target')"> Head</label>
-                <label><input type="checkbox" value="Body" onchange="updateMultiselect('style1_target')"> Body</label>
-                <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style1_target')"> Legs</label>
-                <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style1_target')"> Balanced</label>
-              </div>
+        <!-- RANGE -->
+        <div class="prediction-row">
+          <label>Range <span class="info-icon" data-tooltip="The distance layer where the fighter performs best or actively attempts to establish engagements.">ⓘ</span></label>
+          <select id="style1_range">
+            <option value="">Unknown</option>
+            <option value="Long">Long</option>
+            <option value="Mid">Mid</option>
+            <option value="Pocket">Pocket</option>
+            <option value="Clinch">Clinch</option>
+          </select>
+          <select id="style2_range">
+            <option value="">Unknown</option>
+            <option value="Long">Long</option>
+            <option value="Mid">Mid</option>
+            <option value="Pocket">Pocket</option>
+            <option value="Clinch">Clinch</option>
+          </select>
+        </div>
+
+        <!-- STRIKING IDENTITY -->
+        <div class="prediction-row">
+          <label>Striking Identity <span class="info-icon" data-tooltip="The main offensive profile of the fighter's striking output (e.g., heavy individual shots vs. rapid combinations).">ⓘ</span></label>
+          <div class="custom-multiselect" id="multiselect_style1_identity">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style1_identity')">
+              <input type="text" placeholder="Unknown" readonly id="style1_identity_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_target">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_target')">
-                <input type="text" placeholder="Unknown" readonly id="style2_target_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Head" onchange="updateMultiselect('style2_target')"> Head</label>
-                <label><input type="checkbox" value="Body" onchange="updateMultiselect('style2_target')"> Body</label>
-                <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style2_target')"> Legs</label>
-                <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style2_target')"> Balanced</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Power" onchange="updateMultiselect('style1_identity')"> Power</label>
+              <label><input type="checkbox" value="Volume" onchange="updateMultiselect('style1_identity')"> Volume</label>
+              <label><input type="checkbox" value="Precision" onchange="updateMultiselect('style1_identity')"> Precision</label>
+              <label><input type="checkbox" value="Technical" onchange="updateMultiselect('style1_identity')"> Technical</label>
+              <label><input type="checkbox" value="Unorthodox" onchange="updateMultiselect('style1_identity')"> Unorthodox</label>
             </div>
           </div>
-
-          <!-- PRIMARY WEAPON (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Primary Weapon</label>
-            <div class="custom-multiselect" id="multiselect_style1_weapon">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_weapon')">
-                <input type="text" placeholder="Unknown" readonly id="style1_weapon_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Punches" onchange="updateMultiselect('style1_weapon')"> Punches</label>
-                <label><input type="checkbox" value="Kicks" onchange="updateMultiselect('style1_weapon')"> Kicks</label>
-                <label><input type="checkbox" value="Knees" onchange="updateMultiselect('style1_weapon')"> Knees</label>
-                <label><input type="checkbox" value="Clinch" onchange="updateMultiselect('style1_weapon')"> Clinch</label>
-                <label><input type="checkbox" value="Mixed" onchange="updateMultiselect('style1_weapon')"> Mixed</label>
-              </div>
+          <div class="custom-multiselect" id="multiselect_style2_identity">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style2_identity')">
+              <input type="text" placeholder="Unknown" readonly id="style2_identity_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_weapon">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_weapon')">
-                <input type="text" placeholder="Unknown" readonly id="style2_weapon_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Punches" onchange="updateMultiselect('style2_weapon')"> Punches</label>
-                <label><input type="checkbox" value="Kicks" onchange="updateMultiselect('style2_weapon')"> Kicks</label>
-                <label><input type="checkbox" value="Knees" onchange="updateMultiselect('style2_weapon')"> Knees</label>
-                <label><input type="checkbox" value="Clinch" onchange="updateMultiselect('style2_weapon')"> Clinch</label>
-                <label><input type="checkbox" value="Mixed" onchange="updateMultiselect('style2_weapon')"> Mixed</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Power" onchange="updateMultiselect('style2_identity')"> Power</label>
+              <label><input type="checkbox" value="Volume" onchange="updateMultiselect('style2_identity')"> Volume</label>
+              <label><input type="checkbox" value="Precision" onchange="updateMultiselect('style2_identity')"> Precision</label>
+              <label><input type="checkbox" value="Technical" onchange="updateMultiselect('style2_identity')"> Technical</label>
+              <label><input type="checkbox" value="Unorthodox" onchange="updateMultiselect('style2_identity')"> Unorthodox</label>
             </div>
           </div>
+        </div>
 
-          <!-- FAVORITE STRIKE (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Favorite Strike</label>
-            <div class="custom-multiselect" id="multiselect_style1_strike">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_strike')">
-                <input type="text" placeholder="Unknown" readonly id="style1_strike_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Jab" onchange="updateMultiselect('style1_strike')"> Jab</label>
-                <label><input type="checkbox" value="Cross" onchange="updateMultiselect('style1_strike')"> Cross</label>
-                <label><input type="checkbox" value="Hook" onchange="updateMultiselect('style1_strike')"> Hook</label>
-                <label><input type="checkbox" value="Uppercut" onchange="updateMultiselect('style1_strike')"> Uppercut</label>
-                <label><input type="checkbox" value="Low Kick" onchange="updateMultiselect('style1_strike')"> Low Kick</label>
-                <label><input type="checkbox" value="Body Kick" onchange="updateMultiselect('style1_strike')"> Body Kick</label>
-                <label><input type="checkbox" value="Head Kick" onchange="updateMultiselect('style1_strike')"> Head Kick</label>
-                <label><input type="checkbox" value="Knee" onchange="updateMultiselect('style1_strike')"> Knee</label>
-                <label><input type="checkbox" value="Spectacular Strike" onchange="updateMultiselect('style1_strike')"> Spectacular Strike</label>
-              </div>
+        <!-- TARGET -->
+        <div class="prediction-row">
+          <label>Target <span class="info-icon" data-tooltip="The primary strike areas prioritized by the fighter during their offensive combinations.">ⓘ</span></label>
+          <div class="custom-multiselect" id="multiselect_style1_target">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style1_target')">
+              <input type="text" placeholder="Unknown" readonly id="style1_target_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_strike">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_strike')">
-                <input type="text" placeholder="Unknown" readonly id="style2_strike_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Jab" onchange="updateMultiselect('style2_strike')"> Jab</label>
-                <label><input type="checkbox" value="Cross" onchange="updateMultiselect('style2_strike')"> Cross</label>
-                <label><input type="checkbox" value="Hook" onchange="updateMultiselect('style2_strike')"> Hook</label>
-                <label><input type="checkbox" value="Uppercut" onchange="updateMultiselect('style2_strike')"> Uppercut</label>
-                <label><input type="checkbox" value="Low Kick" onchange="updateMultiselect('style2_strike')"> Low Kick</label>
-                <label><input type="checkbox" value="Body Kick" onchange="updateMultiselect('style2_strike')"> Body Kick</label>
-                <label><input type="checkbox" value="Head Kick" onchange="updateMultiselect('style2_strike')"> Head Kick</label>
-                <label><input type="checkbox" value="Knee" onchange="updateMultiselect('style2_strike')"> Knee</label>
-                <label><input type="checkbox" value="Spectacular Strike" onchange="updateMultiselect('style2_strike')"> Spectacular Strike</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Head" onchange="updateMultiselect('style1_target')"> Head</label>
+              <label><input type="checkbox" value="Body" onchange="updateMultiselect('style1_target')"> Body</label>
+              <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style1_target')"> Legs</label>
+              <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style1_target')"> Balanced</label>
             </div>
           </div>
-
-          <!-- DEFENSE (Custom Dropdown) -->
-          <div class="prediction-row">
-            <label>Defense</label>
-            <div class="custom-multiselect" id="multiselect_style1_defense">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style1_defense')">
-                <input type="text" placeholder="Unknown" readonly id="style1_defense_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Guard" onchange="updateMultiselect('style1_defense')"> Guard</label>
-                <label><input type="checkbox" value="Footwork" onchange="updateMultiselect('style1_defense')"> Footwork</label>
-                <label><input type="checkbox" value="Parry" onchange="updateMultiselect('style1_defense')"> Parry</label>
-                <label><input type="checkbox" value="Head Movement" onchange="updateMultiselect('style1_defense')"> Head Movement</label>
-                <label><input type="checkbox" value="Evasion" onchange="updateMultiselect('style1_defense')"> Evasion</label>
-              </div>
+          <div class="custom-multiselect" id="multiselect_style2_target">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style2_target')">
+              <input type="text" placeholder="Unknown" readonly id="style2_target_text">
             </div>
-            <div class="custom-multiselect" id="multiselect_style2_defense">
-              <div class="select-box" onclick="toggleDropdown('multiselect_style2_defense')">
-                <input type="text" placeholder="Unknown" readonly id="style2_defense_text">
-              </div>
-              <div class="checkboxes-wrapper">
-                <label><input type="checkbox" value="Guard" onchange="updateMultiselect('style2_defense')"> Guard</label>
-                <label><input type="checkbox" value="Footwork" onchange="updateMultiselect('style2_defense')"> Footwork</label>
-                <label><input type="checkbox" value="Parry" onchange="updateMultiselect('style2_defense')"> Parry</label>
-                <label><input type="checkbox" value="Head Movement" onchange="updateMultiselect('style2_defense')"> Head Movement</label>
-                <label><input type="checkbox" value="Evasion" onchange="updateMultiselect('style2_defense')"> Evasion</label>
-              </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Head" onchange="updateMultiselect('style2_target')"> Head</label>
+              <label><input type="checkbox" value="Body" onchange="updateMultiselect('style2_target')"> Body</label>
+              <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style2_target')"> Legs</label>
+              <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style2_target')"> Balanced</label>
             </div>
           </div>
+        </div>
 
-          <!-- TEMPO -->
-          <div class="prediction-row">
-            <label>Tempo</label>
-            <select id="style1_tempo">
-              <option value="">Unknown</option>
-              <option value="Constant">Constant</option>
-              <option value="Burst">Burst</option>
-              <option value="Slow Build">Slow Build</option>
-              <option value="Counter Rhythm">Counter Rhythm</option>
-            </select>
-            <select id="style2_tempo">
-              <option value="">Unknown</option>
-              <option value="Constant">Constant</option>
-              <option value="Burst">Burst</option>
-              <option value="Slow Build">Slow Build</option>
-              <option value="Counter Rhythm">Counter Rhythm</option>
-            </select>
+        <!-- PRIMARY WEAPON -->
+        <div class="prediction-row">
+          <label>Primary Weapon <span class="info-icon" data-tooltip="The signature asset or strike variation a fighter relies on most heavily to damage opponents.">ⓘ</span></label>
+          <select id="style1_weapon">
+            <option value="">Unknown</option>
+            <option value="Punches">Punches</option>
+            <option value="Kicks">Kicks</option>
+            <option value="Knees">Knees</option>
+            <option value="Clinch">Clinch</option>
+            <option value="Mixed">Mixed</option>
+          </select>
+          <select id="style2_weapon">
+            <option value="">Unknown</option>
+            <option value="Punches">Punches</option>
+            <option value="Kicks">Kicks</option>
+            <option value="Knees">Knees</option>
+            <option value="Clinch">Clinch</option>
+            <option value="Mixed">Mixed</option>
+          </select>
+        </div>
+
+        <!-- FAVORITE STRIKE -->
+        <div class="prediction-row">
+          <label>Favorite Strike <span class="info-icon" data-tooltip="The single go-to strike pattern or setup look that characterizes the fighter's highlighting tape.">ⓘ</span></label>
+          <div class="custom-multiselect" id="multiselect_style1_strike">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style1_strike')">
+              <input type="text" placeholder="Unknown" readonly id="style1_strike_text">
+            </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Jab" onchange="updateMultiselect('style1_strike')"> Jab</label>
+              <label><input type="checkbox" value="Cross" onchange="updateMultiselect('style1_strike')"> Cross</label>
+              <label><input type="checkbox" value="Hook" onchange="updateMultiselect('style1_strike')"> Hook</label>
+              <label><input type="checkbox" value="Uppercut" onchange="updateMultiselect('style1_strike')"> Uppercut</label>
+              <label><input type="checkbox" value="Low Kick" onchange="updateMultiselect('style1_strike')"> Low Kick</label>
+              <label><input type="checkbox" value="Body Kick" onchange="updateMultiselect('style1_strike')"> Body Kick</label>
+              <label><input type="checkbox" value="Head Kick" onchange="updateMultiselect('style1_strike')"> Head Kick</label>
+              <label><input type="checkbox" value="Knee" onchange="updateMultiselect('style1_strike')"> Knee</label>
+              <label><input type="checkbox" value="Spectacular Strike" onchange="updateMultiselect('style1_strike')"> Spectacular Strike</label>
+            </div>
           </div>
-
-          <!-- FIGHT IQ -->
-          <div class="prediction-row">
-            <label>Fight IQ</label>
-            <select id="style1_iq">
-              <option value="">Unknown</option>
-              <option value="Aggressive">Aggressive</option>
-              <option value="Calculated">Calculated</option>
-              <option value="Adaptive">Adaptive</option>
-              <option value="Defensive">Defensive</option>
-            </select>
-            <select id="style2_iq">
-              <option value="">Unknown</option>
-              <option value="Aggressive">Aggressive</option>
-              <option value="Calculated">Calculated</option>
-              <option value="Adaptive">Adaptive</option>
-              <option value="Defensive">Defensive</option>
-            </select>
+          <div class="custom-multiselect" id="multiselect_style2_strike">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style2_strike')">
+              <input type="text" placeholder="Unknown" readonly id="style2_strike_text">
+            </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Jab" onchange="updateMultiselect('style2_strike')"> Jab</label>
+              <label><input type="checkbox" value="Cross" onchange="updateMultiselect('style2_strike')"> Cross</label>
+              <label><input type="checkbox" value="Hook" onchange="updateMultiselect('style2_strike')"> Hook</label>
+              <label><input type="checkbox" value="Uppercut" onchange="updateMultiselect('style2_strike')"> Uppercut</label>
+              <label><input type="checkbox" value="Low Kick" onchange="updateMultiselect('style2_strike')"> Low Kick</label>
+              <label><input type="checkbox" value="Body Kick" onchange="updateMultiselect('style2_strike')"> Body Kick</label>
+              <label><input type="checkbox" value="Head Kick" onchange="updateMultiselect('style2_strike')"> Head Kick</label>
+              <label><input type="checkbox" value="Knee" onchange="updateMultiselect('style2_strike')"> Knee</label>
+              <label><input type="checkbox" value="Spectacular Strike" onchange="updateMultiselect('style2_strike')"> Spectacular Strike</label>
+            </div>
           </div>
+        </div>
 
+        <!-- DEFENSE -->
+        <div class="prediction-row">
+          <label>Defense <span class="info-icon" data-tooltip="The main defensive tactic used to avoid coming strikes or tracking counters.">ⓘ</span></label>
+          <div class="custom-multiselect" id="multiselect_style1_defense">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style1_defense')">
+              <input type="text" placeholder="Unknown" readonly id="style1_defense_text">
+            </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Guard" onchange="updateMultiselect('style1_defense')"> Guard</label>
+              <label><input type="checkbox" value="Footwork" onchange="updateMultiselect('style1_defense')"> Footwork</label>
+              <label><input type="checkbox" value="Parry" onchange="updateMultiselect('style1_defense')"> Parry</label>
+              <label><input type="checkbox" value="Head Movement" onchange="updateMultiselect('style1_defense')"> Head Movement</label>
+              <label><input type="checkbox" value="Evasion" onchange="updateMultiselect('style1_defense')"> Evasion</label>
+            </div>
+          </div>
+          <div class="custom-multiselect" id="multiselect_style2_defense">
+            <div class="select-box" onclick="toggleDropdown('multiselect_style2_defense')">
+              <input type="text" placeholder="Unknown" readonly id="style2_defense_text">
+            </div>
+            <div class="checkboxes-wrapper">
+              <label><input type="checkbox" value="Guard" onchange="updateMultiselect('style2_defense')"> Guard</label>
+              <label><input type="checkbox" value="Footwork" onchange="updateMultiselect('style2_defense')"> Footwork</label>
+              <label><input type="checkbox" value="Parry" onchange="updateMultiselect('style2_defense')"> Parry</label>
+              <label><input type="checkbox" value="Head Movement" onchange="updateMultiselect('style2_defense')"> Head Movement</label>
+              <label><input type="checkbox" value="Evasion" onchange="updateMultiselect('style2_defense')"> Evasion</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEMPO -->
+        <div class="prediction-row">
+          <label>Tempo <span class="info-icon" data-tooltip="The pacing blueprint a fighter uses to output energy and construct combinations over rounds.">ⓘ</span></label>
+          <select id="style1_tempo">
+            <option value="">Unknown</option>
+            <option value="Constant">Constant</option>
+            <option value="Burst">Burst</option>
+            <option value="Slow Build">Slow Build</option>
+            <option value="Counter Rhythm">Counter Rhythm</option>
+          </select>
+          <select id="style2_tempo">
+            <option value="">Unknown</option>
+            <option value="Constant">Constant</option>
+            <option value="Burst">Burst</option>
+            <option value="Slow Build">Slow Build</option>
+            <option value="Counter Rhythm">Counter Rhythm</option>
+          </select>
+        </div>
+
+        <!-- FIGHT IQ -->
+        <div class="prediction-row">
+          <label>Fight IQ <span class="info-icon" data-tooltip="The strategic temperament guiding adjustments, situational awareness, and in-cage decision-making.">ⓘ</span></label>
+          <select id="style1_iq">
+            <option value="">Unknown</option>
+            <option value="Aggressive">Aggressive</option>
+            <option value="Calculated">Calculated</option>
+            <option value="Adaptive">Adaptive</option>
+            <option value="Defensive">Defensive</option>
+          </select>
+          <select id="style2_iq">
+            <option value="">Unknown</option>
+            <option value="Aggressive">Aggressive</option>
+            <option value="Calculated">Calculated</option>
+            <option value="Adaptive">Adaptive</option>
+            <option value="Defensive">Defensive</option>
+          </select>
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <h3>
-          Physical Information
-          <span class="info-icon" title="Physical attributes influence the prediction but are not always decisive.">ⓘ</span>
-        </h3>
+    <!-- PHYSICAL INFORMATION CARD -->
+    <div class="card">
+      <h3>
+        Physical Information
+        <span class="info-icon" data-tooltip="Physical attributes directly influence reach advantages, speed limits, and recovery thresholds, but metrics alone are not completely decisive.">ⓘ</span>
+      </h3>
 
-        <div class="prediction-table">
-          <div class="prediction-header">
-            <div>Attribute</div>
-            <div>Fighter 1</div>
-            <div>Fighter 2</div>
-          </div>
+      <div class="prediction-table">
+        <div class="prediction-header">
+          <div>Attribute</div>
+          <div class="fighter-name-label-1">Fighter 1</div>
+          <div class="fighter-name-label-2">Fighter 2</div>
+        </div>
 
-          <div class="prediction-row">
-            <label>Age</label>
-            <input type="number" id="extra1_age" placeholder="Unknown">
-            <input type="number" id="extra2_age" placeholder="Unknown">
-          </div>
+        <div class="prediction-row">
+          <label>Age</label>
+          <input type="number" id="extra1_age" placeholder="Unknown">
+          <input type="number" id="extra2_age" placeholder="Unknown">
+        </div>
 
-          <div class="prediction-row">
-            <label>Height</label>
-            <input type="number" id="extra1_height" placeholder="Unknown (CM)">
-            <input type="number" id="extra2_height" placeholder="Unknown (CM)">
-          </div>
+        <div class="prediction-row">
+          <label>Height</label>
+          <input type="number" id="extra1_height" placeholder="Unknown (CM)">
+          <input type="number" id="extra2_height" placeholder="Unknown (CM)">
+        </div>
 
-          <div class="prediction-row">
-            <label>Reach</label>
-            <input type="number" id="extra1_reach" placeholder="Unknown (CM)">
-            <input type="number" id="extra2_reach" placeholder="Unknown (CM)">
-          </div>
+        <div class="prediction-row">
+          <label>Reach</label>
+          <input type="number" id="extra1_reach" placeholder="Unknown (CM)">
+          <input type="number" id="extra2_reach" placeholder="Unknown (CM)">
+        </div>
 
-          <div class="prediction-row">
-            <label>Weight</label>
-            <input type="number" id="extra1_weight" placeholder="Unknown (KG)">
-            <input type="number" id="extra2_weight" placeholder="Unknown (KG)">
-          </div>
+        <div class="prediction-row">
+          <label>Weight</label>
+          <input type="number" id="extra1_weight" placeholder="Unknown (KG)">
+          <input type="number" id="extra2_weight" placeholder="Unknown (KG)">
+        </div>
 
         <!-- Side-by-Side Sliders (Athleticism) -->
-<div class="prediction-row slider-row">
-<div class="slider-label-group">
-  <label>Athleticism</label>
-  
-  <!-- Info Icon with text bubble wrapper -->
-  <span class="tooltip-container" data-tooltip="Measures explosive power, speed, and raw physical traits.">ⓘ</span>
-  
-  <label class="switch-inline">
-    <input type="checkbox" id="toggle_athleticism" onchange="toggleSliderInput('athleticism')">
-    <span class="lbl-text">Known</span>
-  </label>
-</div>
-  
-  <!-- Changed ID here to athleticismValue1 -->
-  <div class="slider-container flex-child">
-    <span id="athleticismValue1" class="slider-val">5/10</span>
-    <input type="range" min="1" max="10" value="5" id="extra1_athleticism" oninput="updateSlider(this,'athleticismValue1')">
-  </div>
-  
-  <!-- Changed ID here to athleticismValue2 -->
-  <div class="slider-container flex-child">
-    <span id="athleticismValue2" class="slider-val">5/10</span>
-    <input type="range" min="1" max="10" value="5" id="extra2_athleticism" oninput="updateSlider(this,'athleticismValue2')">
-  </div>
-</div>
-
-          <!-- Side-by-Side Sliders (Cardio) -->
-          <div class="prediction-row slider-row">
-            <div class="slider-label-group">
-              <label>Cardio</label>
-              <label class="switch-inline">
-                <input type="checkbox" id="toggle_cardio" onchange="toggleSliderInput('cardio')">
-                <span class="lbl-text">Known</span>
-              </label>
-            </div>
-            <div class="slider-container flex-child">
-              <span id="cardioValue1" class="slider-val">5/10</span>
-              <input type="range" min="1" max="10" value="5" id="extra1_cardio" oninput="updateSlider(this,'cardioValue1')">
-            </div>
-            <div class="slider-container flex-child">
-              <span id="cardioValue2" class="slider-val">5/10</span>
-              <input type="range" min="1" max="10" value="5" id="extra2_cardio" oninput="updateSlider(this,'cardioValue2')">
-            </div>
+        <div class="prediction-row slider-row">
+          <div class="slider-label-group">
+            <label>Athleticism <span class="info-icon" data-tooltip="Measures explosive twitch fiber capacity, multi-directional speed, and raw physical force generation.">ⓘ</span></label>
+            <label class="switch-inline">
+              <input type="checkbox" id="toggle_athleticism" onchange="toggleSliderInput('athleticism')">
+              <span class="lbl-text">Known</span>
+            </label>
           </div>
-
-          <!-- Side-by-Side Sliders (Durability) -->
-          <div class="prediction-row slider-row">
-            <div class="slider-label-group">
-              <label>Durability</label>
-              <label class="switch-inline">
-                <input type="checkbox" id="toggle_durability" onchange="toggleSliderInput('durability')">
-                <span class="lbl-text">Known</span>
-              </label>
-            </div>
-            <div class="slider-container flex-child">
-              <span id="durabilityValue1" class="slider-val">5/10</span>
-              <input type="range" min="1" max="10" value="5" id="extra1_durability" oninput="updateSlider(this,'durabilityValue1')">
-            </div>
-            <div class="slider-container flex-child">
-              <span id="durabilityValue2" class="slider-val">5/10</span>
-              <input type="range" min="1" max="10" value="5" id="extra2_durability" oninput="updateSlider(this,'durabilityValue2')">
-            </div>
+          <div class="slider-container flex-child">
+            <span id="athleticismValue1" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra1_athleticism" oninput="updateSlider(this,'athleticismValue1')">
           </div>
-
+          <div class="slider-container flex-child">
+            <span id="athleticismValue2" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra2_athleticism" oninput="updateSlider(this,'athleticismValue2')">
+          </div>
         </div>
 
-        <div class="action-buttons" style="margin-top: 15px; display: flex; gap: 10px;">
-          <button onclick="clearPredictionSide(1)" style="flex: 1;">Clear Fighter 1</button>
-          <button onclick="clearPredictionSide(2)" style="flex: 1;">Clear Fighter 2</button>
+        <!-- Side-by-Side Sliders (Cardio) -->
+        <div class="prediction-row slider-row">
+          <div class="slider-label-group">
+            <label>Cardio <span class="info-icon" data-tooltip="Aerobic and anaerobic endurance capacity. High scores allow sustained volume and pacing deep into later rounds.">ⓘ</span></label>
+            <label class="switch-inline">
+              <input type="checkbox" id="toggle_cardio" onchange="toggleSliderInput('cardio')">
+              <span class="lbl-text">Known</span>
+            </label>
+          </div>
+          <div class="slider-container flex-child">
+            <span id="cardioValue1" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra1_cardio" oninput="updateSlider(this,'cardioValue1')">
+          </div>
+          <div class="slider-container flex-child">
+            <span id="cardioValue2" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra2_cardio" oninput="updateSlider(this,'cardioValue2')">
+          </div>
+        </div>
+
+        <!-- Side-by-Side Sliders (Durability) -->
+        <div class="prediction-row slider-row">
+          <div class="slider-label-group">
+            <label>Durability <span class="info-icon" data-tooltip="Ability to withstand clean damage, handle trauma thresholds, recover from knockdowns, and resist fatigue-induced collapse.">ⓘ</span></label>
+            <label class="switch-inline">
+              <input type="checkbox" id="toggle_durability" onchange="toggleSliderInput('durability')">
+              <span class="lbl-text">Known</span>
+            </label>
+          </div>
+          <div class="slider-container flex-child">
+            <span id="durabilityValue1" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra1_durability" oninput="updateSlider(this,'durabilityValue1')">
+          </div>
+          <div class="slider-container flex-child">
+            <span id="durabilityValue2" class="slider-val">5/10</span>
+            <input type="range" min="1" max="10" value="5" id="extra2_durability" oninput="updateSlider(this,'durabilityValue2')">
+          </div>
         </div>
       </div>
 
-      <!-- RESULTS -->
-      <div id="predictionResults"></div>
+      <div class="action-buttons" style="margin-top: 15px; display: flex; gap: 10px;">
+        <button onclick="clearPredictionSide(1)" style="flex: 1;">Clear Fighter 1</button>
+        <button onclick="clearPredictionSide(2)" style="flex: 1;">Clear Fighter 2</button>
+      </div>
     </div>
-  </div>
 
-  <!-- Admin Page -->
+    <!-- RESULTS -->
+    <div id="predictionResults"></div>
+  </div>
+</div>
+
+       <!-- Admin Page -->
   <div id="admin" class="page">
     <div class="container">
       <h2>Admin Panel</h2>

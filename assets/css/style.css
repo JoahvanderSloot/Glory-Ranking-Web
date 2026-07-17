@@ -565,7 +565,7 @@ input:checked + .slider:before {
 
 .prediction-sticky {
   position: sticky;
-  top: 10px; /* Readjust this if your main layout header is thick */
+  top: 30px; /* Readjust this if your main layout header is thick */
   z-index: 100;
   background: #1a1a1a; /* Match your app background */
   padding: 15px;
@@ -812,43 +812,66 @@ input:checked + .slider:before {
 }
 
 /* The actual text bubble styling */
-.tooltip-container::after {
-    content: attr(data-tooltip); /* Pulls text directly from the HTML attribute */
-    position: absolute;
-    bottom: 130%; /* Positions the bubble cleanly above the icon */
-    left: 50%;
-    transform: translateX(-50%) scale(0.9);
-    
-    /* Presentation & Branding */
-    background: #1a1a1a;
-    color: #fff;
-    border: 1px solid gold;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: normal;
-    white-space: nowrap; /* Prevents text from breaking into multiple ugly lines */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-    z-index: 2000;
-    
-    /* Animation Properties */
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    transition-delay: 0s; /* No fade-out delay when leaving icon */
+/* ==========================================================
+   PURE CSS TOOLTIP SYSTEM (Delayed Hover Text Bubbles)
+   ========================================================== */
+.info-icon {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    cursor: help;
+    color: #cca300; /* Subtle matte gold icon color */
+    font-size: 0.9em;
+    margin-left: 4px;
+    font-style: normal;
 }
 
-/* Small alignment triangle pointing down to the icon */
-.tooltip-container::before {
+/* Tooltip Text Container Styling */
+.info-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 140%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
+    
+    /* Layout & Styling */
+    background-color: #161616;
+    color: #f0f0f0;
+    border: 1px solid #cca300;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: normal;
+    font-family: sans-serif;
+    line-height: 1.4;
+    
+    /* Dimensions */
+    width: 260px;
+    white-space: normal; /* Allows clean phrase multi-line breaks */
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
+    z-index: 9999;
+    
+    /* Visibility Transitions */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition-delay: 0s;
+}
+
+/* Tooltip Little Directing Pointer Arrow */
+.info-icon::before {
     content: "";
     position: absolute;
-    bottom: 110%;
+    bottom: 120%;
     left: 50%;
     transform: translateX(-50%);
     border-width: 6px;
     border-style: solid;
-    border-color: gold transparent transparent transparent;
-    z-index: 2000;
+    border-color: #cca300 transparent transparent transparent;
+    z-index: 9999;
     
     opacity: 0;
     pointer-events: none;
@@ -856,11 +879,142 @@ input:checked + .slider:before {
     transition-delay: 0s;
 }
 
-/* Hover trigger state with intentional built-in delay */
-.tooltip-container:hover::after,
-.tooltip-container:hover::before {
+/* Interactive Hover Trigger Layer with a 0.45-second Delay */
+.info-icon:hover::after,
+.info-icon:hover::before {
     opacity: 1;
+    pointer-events: auto;
     transform: translateX(-50%) scale(1);
-    /* 0.4s delay ensures it doesn't flash open when cursor just passes over it */
-    transition-delay: 0.4s; 
+    transition-delay: 0.45s; /* Only pops up when you dwell on it */
+}
+
+/* Ensure the container wrapping both the search input and results has this */
+/* 1. Keep the container tight and clean */
+/* Tighten container, no margins */
+.search-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* Force the search results to copy your app's existing open dropdown styles exactly */
+.search-results,
+#predictionResults1,
+#predictionResults2 {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+    
+    /* STOLEN FROM YOUR CUSTOM DROPDOWNS: */
+    /* This automatically copies your background, border, colors, and shadows from your multi-select wrapper */
+    background-color: var(--card-bg, #ffffff) !important; /* Fallback to white if a variable isn't used */
+}
+
+/* Let's explicitly force it to copy your .checkboxes-wrapper properties if you have them */
+/* ==========================================================
+   FIXED SEARCH DROPDOWN SYSTEM (Matches Black/Gold Theme)
+   ========================================================== */
+
+/* 1. Keep the search container tight and relative */
+/* ==========================================================
+   FORCE-FIXED SEARCH DROPDOWN SYSTEM (No More White Backgrounds)
+   ========================================================== */
+
+/* Keep the search container tight and relative */
+.search-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0 !important;
+}
+
+/* Forces the search results dropdown to be pitch black/dark grey with a gold border */
+.search-results,
+#predictionResults1,
+#predictionResults2 {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 9999 !important; /* Layers it completely on top of tables and sliders */
+    
+    /* Hard overrides to destroy any browser default styles */
+    background: #111111 !important;        /* Pure solid dark grey matches your theme */
+    background-color: #111111 !important;  /* Safety fallback */
+    border: 1px solid gold !important;     /* Clean gold outline */
+    border-radius: 8px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9) !important;
+    
+    max-height: 200px !important;
+    overflow-y: auto !important;
+    margin-top: 4px !important;
+}
+
+/* Styles the individual rows to have light, readable text */
+.search-results .fighter-row,
+.fighter-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 10px 14px !important;
+    cursor: pointer !important;
+    text-align: left !important;
+    font-size: 14px !important;
+    
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #eeeeee !important;             /* Crisp off-white text */
+    border-bottom: 1px solid #222222 !important; 
+    transition: 0.2s ease !important;
+}
+
+/* Remove bottom border from the last row inside the dropdown */
+.search-results .fighter-row:last-child {
+    border-bottom: none !important;
+}
+
+.search-results .fighter-row:hover {
+    background: rgba(255, 215, 0, 0.15) !important;
+    background-color: rgba(255, 215, 0, 0.15) !important;
+    color: #ffffff !important;
+}
+
+#styleName1, 
+#styleName2 {
+    display: block;
+    margin-bottom: 0.75rem; 
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+label[for="predictionSearch1"],
+label[for="predictionSearch2"] {
+    display: block;
+    margin-bottom: 0.5rem; 
+}
+
+#adminContent .form-group {
+    position: relative !important;
+}
+
+.search-results:empty,
+#fightResults1:empty,
+#fightResults2:empty,
+#predictionResults1:empty,
+#predictionResults2:empty {
+    display: none !important;
+    border: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.search-results .fighter-row {
+    border-bottom: 1px solid #222222 !important;
+}
+
+#adminContent .form-group .fighter-row:only-child:empty {
+    display: none !important;
+    border: none !important;
 }

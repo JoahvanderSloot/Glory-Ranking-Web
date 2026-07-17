@@ -12,31 +12,53 @@ let editFighterId = null;
 // ========================
 // PAGE NAVIGATION
 // ========================
+// ========================
+// PAGE NAVIGATION
+// ========================
 function showPage(pageId) {
+    // 1. Check if we are currently looking at a result (The "Prediction" view)
+    const resultsContainer = document.getElementById("predictionResults");
+    const isShowingResult = resultsContainer && resultsContainer.innerHTML.trim() !== "";
+
+    // 2. If a result is active, force the restoration of inputs first
+    if (isShowingResult) {
+        // This triggers the button logic we created earlier to show inputs
+        window.restorePredictionInputs();
+        
+        // Wait a split second so the user actually sees the input fields reappear
+        // before the page transition happens
+        setTimeout(() => performPageSwitch(pageId), 100);
+    } else {
+        // No result active, proceed normally
+        performPageSwitch(pageId);
+    }
+}
+
+// 3. Move your existing logic into this helper function
+function performPageSwitch(pageId) {
+    const targetPage = document.getElementById(pageId);
+    if (!targetPage) return;
+
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-    document.getElementById(pageId).classList.add("active");
+    targetPage.classList.add("active");
 
-    // Clear search inputs and results whenever page changes
-    const searchInputs = ["searchInput", "leaderboardSearch", "editFighterSearch", "fightSearch1", "fightSearch2"];
-    const resultBoxes = ["searchResults", "leaderboardResults", "editFighterResults", "fightResults1", "fightResults2"];
-
+    // Standard cleanup
+    const searchInputs = ["searchInput", "leaderboardSearch", "editFighterSearch", "predictionSearch1", "predictionSearch2"];
     searchInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
     });
-    resultBoxes.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = "";
-    });
 
-    // Clear fight selection
-    fightSelection = { f1: null, f2: null };
-    const fightWinner = document.getElementById("fightWinner");
-    if (fightWinner) fightWinner.innerHTML = '<option value="draw">Draw</option>';
-
-    // Clear edit fighter fields when leaving page
-    clearEditFighterFields();
+    // Reset everything else
+    if (typeof window.resetPredictionEngine === 'function') {
+        window.resetPredictionEngine();
+    }
+    
+    // ... rest of your existing clear logic
 }
+
+// FORCE GLOBAL ACCESS (Crucial for ES Modules to work with inline onclick attributes)
+window.showPage = showPage;
 // ========================
 // ADMIN LOGIN
 // ========================
@@ -749,3 +771,36 @@ window.selectFighterToEdit = selectFighterToEdit;
 window.searchPrediction1 = searchPrediction1;
 window.searchPrediction2 = searchPrediction2;
 window.fighters = fighters;
+
+// ==========================================================
+// AUTO-CLOSE SEARCH DROPDOWNS
+// ==========================================================
+
+// 1. Close dropdowns when clicking anywhere outside of them
+window.addEventListener('click', function(e) {
+    // List of all your search input IDs
+    const searchInputs = ['fightSearch1', 'fightSearch2', 'editFighterSearch', 'searchInput', 'leaderboardSearch'];
+    
+    // If the user did not click on a search input field, clear out all result boxes
+    if (!searchInputs.some(id => e.target.id === id)) {
+        document.querySelectorAll('.search-results').forEach(box => {
+            box.innerHTML = '';
+        });
+    }
+});
+
+// 2. Clear dropdown when a fighter is selected
+// Wrap your existing selectFighter function (or whichever function handles the click event on a result row) 
+// to ensure it clears out the HTML of the results panel immediately upon selection.
+const originalSelectFighter = window.selectFighter;
+if (typeof originalSelectFighter === 'function') {
+    window.selectFighter = function(...args) {
+        // Execute your original logic to set the fighter data
+        originalSelectFighter(...args);
+        
+        // Immediately clear out all dropdown containers so they vanish
+        document.querySelectorAll('.search-results').forEach(box => {
+            box.innerHTML = '';
+        });
+    };
+}
