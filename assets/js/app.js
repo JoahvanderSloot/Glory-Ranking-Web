@@ -39,22 +39,44 @@ function performPageSwitch(pageId) {
     const targetPage = document.getElementById(pageId);
     if (!targetPage) return;
 
+    // Standard Page Toggle
     document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
     targetPage.classList.add("active");
 
-    // Standard cleanup
+    // --- YOUR EXISTING CLEANUP ---
     const searchInputs = ["searchInput", "leaderboardSearch", "editFighterSearch", "predictionSearch1", "predictionSearch2"];
+    const resultBoxes = ["searchResults", "leaderboardResults", "editFighterResults", "predictionResults1", "predictionResults2"];
+
     searchInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
     });
+    
+    resultBoxes.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = "";
+    });
 
-    // Reset everything else
+    // --- ADD THIS: FORCE RESET PREDICTION LABELS ---
+    // This resets the text, clears the selection object, and disables the calculate button
+    if (typeof window.clearPredictionSide === 'function') {
+        window.clearPredictionSide(1, true);
+        window.clearPredictionSide(2, true);
+    }
+    
+    // Clear other global selection objects
+    fightSelection = { f1: null, f2: null };
+    const fightWinner = document.getElementById("fightWinner");
+    if (fightWinner) fightWinner.innerHTML = '<option value="draw">Draw</option>';
+
+    if (typeof clearEditFighterFields === 'function') {
+        clearEditFighterFields();
+    }
+
+    // Final Reset for Prediction Engine internal logic
     if (typeof window.resetPredictionEngine === 'function') {
         window.resetPredictionEngine();
     }
-    
-    // ... rest of your existing clear logic
 }
 
 // FORCE GLOBAL ACCESS (Crucial for ES Modules to work with inline onclick attributes)

@@ -8,6 +8,7 @@ let predictionSelection = {
 };
 
 function initSlidersOnLoad() {
+    // Replaced 'durability' with 'chin' and 'ko'
     const features = ["durability", "cardio", "athleticism"]; 
     features.forEach(feature => {
         const toggle = document.getElementById(`toggle_${feature}`);
@@ -24,10 +25,17 @@ document.addEventListener("DOMContentLoaded", initSlidersOnLoad);
 // ==========================================
 
 function searchPrediction1() {
-    const query = document.getElementById("predictionSearch1").value.toLowerCase();
+    const inputEl = document.getElementById("predictionSearch1");
+    const query = inputEl.value.toLowerCase();
     const box = document.getElementById("predictionResults1");
 
-    if (predictionSelection.fighter1 && document.getElementById("predictionSearch1").value !== predictionSelection.fighter1.name) {
+    // 1. Detect if the manual input no longer matches the selected fighter name
+    if (predictionSelection.fighter1 && inputEl.value !== predictionSelection.fighter1.name) {
+        // Reset the labels if the user cleared the text or typed something else
+        document.getElementById("styleName1").innerHTML = "Fighter 1";
+        document.querySelectorAll(".fighter-name-label-1").forEach(el => el.innerHTML = "Fighter 1");
+        
+        // Clear internal selections
         clearPredictionSide(1, false);
     }
 
@@ -45,11 +53,16 @@ function searchPrediction1() {
     `).join("");
 }
 
+// Repeat the same logic for Side 2
 function searchPrediction2() {
-    const query = document.getElementById("predictionSearch2").value.toLowerCase();
+    const inputEl = document.getElementById("predictionSearch2");
+    const query = inputEl.value.toLowerCase();
     const box = document.getElementById("predictionResults2");
 
-    if (predictionSelection.fighter2 && document.getElementById("predictionSearch2").value !== predictionSelection.fighter2.name) {
+    if (predictionSelection.fighter2 && inputEl.value !== predictionSelection.fighter2.name) {
+        document.getElementById("styleName2").innerHTML = "Fighter 2";
+        document.querySelectorAll(".fighter-name-label-2").forEach(el => el.innerHTML = "Fighter 2");
+        
         clearPredictionSide(2, false);
     }
 
@@ -97,6 +110,14 @@ function selectPredictionFighter(side, id, name) {
     updatePredictionButton();
 }
 
+function autoSetKnown(attribute) {
+  let toggle = document.getElementById(`toggle_${attribute}`);
+  if (toggle && !toggle.checked) {
+    toggle.checked = true;
+    toggleSliderInput(attribute); // Your existing function that activates the sliders
+  }
+}
+
 function clearPredictionSide(side, clearInputText = true) {
     const prefix = side === 1 ? "1" : "2";
 
@@ -138,6 +159,15 @@ function clearPredictionSide(side, clearInputText = true) {
     }
 
     updatePredictionButton();
+
+// Reset the toggles to unknown for BOTH fighters
+  ['athleticism', 'cardio', 'chin', 'ko'].forEach(attr => {
+    let toggle = document.getElementById(`toggle_${attr}`);
+    if (toggle && toggle.checked) {
+      toggle.checked = false;
+      toggleSliderInput(attr); // Re-run to disable them
+    }
+  });
 }
 
 function updatePredictionButton() {
@@ -226,14 +256,12 @@ window.selectPredictionFighter = selectPredictionFighter;
 window.closePredictionDropdown = closePredictionDropdown;
 window.calculatePrediction = calculatePrediction;
 
-/**
- * GLORY PREDICTION ENGINE CONFIGURATION
- */
 export const PREDICTION_CONFIG = {
     weights: {
         elo: 60,
         winLossRatio: 40,
-        koPercentage: 25,
+        koPercentage: 25, // This is your active KO% category
+        chin: 25,         // This is your new Chin% category
         experience: 25,
         momentum: 30,
         pastMatchup: 20, 
@@ -250,19 +278,28 @@ export const PREDICTION_CONFIG = {
 /**
  * Main Calculation and Orchestration Routine
  */
+let isShowingResults = false;
+
 export function calculatePrediction() {
     const name1 = document.getElementById("predictionSearch1")?.value.trim() || "Fighter 1";
     const name2 = document.getElementById("predictionSearch2")?.value.trim() || "Fighter 2";
+    const btn = document.getElementById('calculatePrediction');
+  const cards = document.querySelectorAll('.card'); // Grabs the Style and Physical cards
+  const searchInputs = document.querySelectorAll('.search-container input');
+  const resultsDiv = document.getElementById('predictionResults');
 
     let dbF1 = window.currentFighter1 || findFighterInApplication(name1);
     let dbF2 = window.currentFighter2 || findFighterInApplication(name2);
 
+    // Fallbacks if not found
     if (!dbF1) dbF1 = createFallbackProfile(name1, 1134, 10, 1, 0, 26, 74, 75, 170); 
     if (!dbF2) dbF2 = createFallbackProfile(name2, 1109, 11, 4, 0, 32, 75, 76, 172);
 
     const uiInputs = getPredictionFormInputs();
-    let totalAvailableWeightPool = 0;
-    let voidedWeightPool = 0; // NEW: Track missed data
+    
+    // Dynamic max weight, so we can deduct categories (like past matchups) if they legitimately don't exist
+    let dynamicMaxEngineWeight = Object.values(PREDICTION_CONFIG.weights).reduce((a, b) => a + b, 0);
+    let voidedWeightPool = 0; 
     const categoryBreakdowns = [];
 
     function evalCategory(key, label, val1, val2, display1, display2, evaluationFn) {
@@ -271,7 +308,7 @@ export function calculatePrediction() {
         const isF1Known = val1 !== null && val1 !== undefined && val1 !== "" && val1 !== "unknown" && val1 !== "Unknown";
         const isF2Known = val2 !== null && val2 !== undefined && val2 !== "" && val2 !== "unknown" && val2 !== "Unknown";
 
-        // If data is missing (e.g. checkbox off), we IMMEDIATELY exit and mark it as voided.
+        // If data is missing (e.g. checkbox off or field empty), exit and mark it as voided.
         if (!isF1Known || !isF2Known) {
             voidedWeightPool += categoryWeight;
             return;
@@ -280,11 +317,8 @@ export function calculatePrediction() {
         const result = evaluationFn(val1, val2, categoryWeight);
         
         if (key === "age" && result.isOmittedDraw) {
-            totalAvailableWeightPool += categoryWeight; // It was valid, just equal
-            return;
+            return; // Age was valid, just equal, doesn't skew result but doesn't count as voided
         }
-
-        totalAvailableWeightPool += categoryWeight;
 
         categoryBreakdowns.push({
             label,
@@ -314,10 +348,47 @@ export function calculatePrediction() {
         return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
     });
 
-    evalCategory("koPercentage", "KO %tage", stats1.koRatio, stats2.koRatio, `${Math.round(stats1.koRatio * 100)}%`, `${Math.round(stats2.koRatio * 100)}%`, (v1, v2) => {
-        if (v1 === 0 && v2 === 0) return { f1Share: 0.5, f2Share: 0.5 };
-        return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
-    });
+   evalCategory(
+    "koPercentage",
+    "KO %tage",
+    stats1.koRatio,
+    stats2.koRatio,
+    stats1.koRatio == null ? "Unknown" : `${Math.round(stats1.koRatio * 100)}%`,
+    stats2.koRatio == null ? "Unknown" : `${Math.round(stats2.koRatio * 100)}%`,
+    (v1, v2) => {
+
+        if (v1 === 0 && v2 === 0) {
+            return {
+                f1Share: 0.5,
+                f2Share: 0.5
+            };
+        }
+
+        return {
+            f1Share: v1 / (v1 + v2),
+            f2Share: v2 / (v1 + v2)
+        };
+    }
+);
+evalCategory(
+    "chin",
+    "Chin %tage",
+    stats1.koLossRatio,
+    stats2.koLossRatio,
+    stats1.koLossRatio == null ? "Unknown" : `${Math.round(stats1.koLossRatio * 100)}%`,
+    stats2.koLossRatio == null ? "Unknown" : `${Math.round(stats2.koLossRatio * 100)}%`,
+    (v1, v2) => {
+
+        // Lower KO-loss percentage is better
+        const safe1 = 1 - v1;
+        const safe2 = 1 - v2;
+
+        return {
+            f1Share: safe1 / (safe1 + safe2),
+            f2Share: safe2 / (safe1 + safe2)
+        };
+    }
+);
 
     evalCategory("experience", "Experience", stats1.totalFights, stats2.totalFights, `${stats1.totalFights} fights`, `${stats2.totalFights} fights`, (v1, v2) => {
         return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
@@ -329,11 +400,18 @@ export function calculatePrediction() {
         return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
     });
 
-    const shareMetric = evaluateSharedHistory(dbF1.history || [], dbF2.history || [], dbF1.id, dbF2.id);
+    const shareMetric = evaluateSharedHistory(dbF1, dbF2);
     if (shareMetric.hasData) {
-        evalCategory("pastMatchup", "Shared Opponents", shareMetric.f1Score, shareMetric.f2Score, `+${shareMetric.f1Score}`, `+${shareMetric.f2Score}`, (v1, v2) => {
+        const safeF1 = shareMetric.f1Score === 0 && shareMetric.f2Score === 0 ? 1 : shareMetric.f1Score;
+        const safeF2 = shareMetric.f1Score === 0 && shareMetric.f2Score === 0 ? 1 : shareMetric.f2Score;
+
+        evalCategory("pastMatchup", "Shared History", safeF1, safeF2, `+${shareMetric.f1Score}`, `+${shareMetric.f2Score}`, (v1, v2) => {
             return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
         });
+    } else {
+        // If no shared history, we don't punish the confidence rating. 
+        // We simply remove its weight from the total possible score.
+        dynamicMaxEngineWeight -= PREDICTION_CONFIG.weights["pastMatchup"];
     }
 
     // ==========================================
@@ -345,15 +423,12 @@ export function calculatePrediction() {
     evalCategory("age", "Fight Age/Mileage", age1, age2, `${age1} yrs`, `${age2} yrs`, (a1, a2) => {
         const getAgeScore = (age, fights) => {
             let score = 100;
-            // Base physical prime penalty
-            if (age < 24) score -= (24 - age) * 4; // Young, developing man-strength
-            else if (age > 33) score -= (age - 33) * 6; // Aging out of physical prime
+            if (age < 24) score -= (24 - age) * 4; 
+            else if (age > 33) score -= (age - 33) * 6; 
 
-            // Career Intersection Context
-            if (age < 25 && fights > 25) score += 10; // Prodigy/Young Veteran bonus
-            if (age > 34 && fights < 15) score -= 15; // Late bloomer penalty (old + inexperienced)
+            if (age < 25 && fights > 25) score += 10; 
+            if (age > 34 && fights < 15) score -= 15; 
 
-            // Wear and Tear (Wars add up regardless of age)
             if (fights > 40) score -= (fights - 40) * 0.75; 
 
             return Math.max(10, Math.min(100, score));
@@ -363,7 +438,6 @@ export function calculatePrediction() {
         const f2Score = getAgeScore(a2, stats2.totalFights);
 
         const absoluteDiff = Math.abs(f1Score - f2Score);
-        // If the calculated fight age score is practically identical, skip skewing the result
         if (absoluteDiff < 5) {
             return { f1Share: 0.5, f2Share: 0.5, isOmittedDraw: true };
         }
@@ -383,11 +457,8 @@ export function calculatePrediction() {
     const styleValid2 = uiInputs.f2.stance && uiInputs.f2.stance !== "unknown" && uiInputs.f2.stance !== "Unknown";
     const styleScore1 = (styleValid1 && styleValid2) ? (uiInputs.f1.movement.length * 2) + 5 : null;
     const styleScore2 = (styleValid1 && styleValid2) ? (uiInputs.f2.movement.length * 2) + 5 : null;
-    if (styleScore1 && styleScore2) {
-         evalCategory("style", "Style", styleScore1, styleScore2, "Strategic Setup", "Strategic Setup", (v1, v2) => ({ f1Share: 0.5, f2Share: 0.5 }));
-    } else {
-         voidedWeightPool += PREDICTION_CONFIG.weights["style"];
-    }
+    
+    evalCategory("style", "Style", styleScore1, styleScore2, "Strategic Setup", "Strategic Setup", (v1, v2) => ({ f1Share: 0.5, f2Share: 0.5 }));
 
     const h1 = uiInputs.f1.height || dbF1.height;
     const h2 = uiInputs.f2.height || dbF2.height;
@@ -395,18 +466,48 @@ export function calculatePrediction() {
     const r2 = uiInputs.f2.reach || dbF2.reach;
     const totalBio1 = (h1 && r1) ? (h1 + r1) : null;
     const totalBio2 = (h2 && r2) ? (h2 + r2) : null;
-    evalCategory("heightReach", "Height/Reach", totalBio1, totalBio2, `${h1}" / ${r1}"`, `${h2}" / ${r2}"`, (v1, v2) => {
+    
+    evalCategory("heightReach", "Height & Reach", totalBio1, totalBio2, `${h1}" / ${r1}"`, `${h2}" / ${r2}"`, (v1, v2) => {
         return { f1Share: v1 / ((v1 + v2) || 1), f2Share: v2 / ((v1 + v2) || 1) };
     });
 
     const w1 = uiInputs.f1.weight || dbF1.weight;
     const w2 = uiInputs.f2.weight || dbF2.weight;
-    evalCategory("weight", "Weight", w1, w2, `${w1} lbs`, `${w2} lbs`, (v1, v2) => ({ f1Share: 0.5, f2Share: 0.5 }));
+    
+    evalCategory("weight", "Effective Mass", w1, w2, `${w1} kg`, `${w2} kg`, (v1, v2) => {
+        let share1 = v1 / (v1 + v2);
+        let share2 = v2 / (v1 + v2);
 
-    // =========================================================================
-    // PHYSICAL ATTRIBUTE SLIDERS (STRICTLY SKIPPED IF CHECKBOX IS OFF)
-    // =========================================================================
-    ["athleticism", "cardio", "durability"].forEach(key => {
+        const checkBadWeight = (fighterWeight, oppWeight, cardio, ath) => {
+            if (fighterWeight > oppWeight * 1.05) { 
+                if (cardio !== null && ath !== null) {
+                    const fitness = (cardio + ath) / 2;
+                    if (fitness < 5) return true; // Too heavy, lacking fitness
+                }
+            }
+            return false;
+        };
+
+        const f1BadWeight = checkBadWeight(v1, v2, uiInputs.f1.cardio, uiInputs.f1.athleticism);
+        const f2BadWeight = checkBadWeight(v2, v1, uiInputs.f2.cardio, uiInputs.f2.athleticism);
+
+        if (f1BadWeight && !f2BadWeight) {
+            share1 = 0.40; share2 = 0.60; 
+        } else if (f2BadWeight && !f1BadWeight) {
+            share1 = 0.60; share2 = 0.40;
+        } else {
+            if (v1 > v2) { share1 += 0.05; share2 -= 0.05; }
+            else if (v2 > v1) { share2 += 0.05; share1 -= 0.05; }
+        }
+
+        return { 
+            f1Share: Math.max(0, Math.min(1, share1)), 
+            f2Share: Math.max(0, Math.min(1, share2)) 
+        };
+    });
+
+// PHYSICAL ATTRIBUTE SLIDERS
+    ["athleticism", "cardio", "ko"].forEach(key => {
         let numericV1 = uiInputs.f1[key]; // Returns NULL if checkbox is OFF
         let numericV2 = uiInputs.f2[key]; // Returns NULL if checkbox is OFF
 
@@ -418,17 +519,15 @@ export function calculatePrediction() {
     // ==========================================
     // 4. MATHEMATICAL AGGREGATION & WINNER OUTCOME
     // ==========================================
-    const totalMaxPossibleEngineWeight = Object.values(PREDICTION_CONFIG.weights).reduce((a, b) => a + b, 0);
     
-    // NEW: Calculate missing data % directly
-    const voidedPercentage = Math.round((voidedWeightPool / totalMaxPossibleEngineWeight) * 100);
+    const voidedPercentage = Math.round((voidedWeightPool / dynamicMaxEngineWeight) * 100);
     const computerCertaintyPercentage = Math.max(0, 100 - voidedPercentage);
 
     let aggregateF1Gained = categoryBreakdowns.reduce((sum, item) => sum + item.f1Gain, 0);
     let aggregateF2Gained = categoryBreakdowns.reduce((sum, item) => sum + item.f2Gain, 0);
 
-    let finalF1Percentage = 0;
-    let finalF2Percentage = 0;
+    let finalF1Percentage = 50;
+    let finalF2Percentage = 50;
 
     if ((aggregateF1Gained + aggregateF2Gained) > 0) {
         finalF1Percentage = Math.round((aggregateF1Gained / (aggregateF1Gained + aggregateF2Gained)) * 100);
@@ -457,19 +556,34 @@ export function calculatePrediction() {
 }
 
 // ==========================================
-// 5. CLEAN MATRIX RENDER VIEW (RESTORED & COLOR-CODED)
+// 5. CLEAN MATRIX RENDER VIEW
 // ==========================================
 function renderTrueMatchupView(name1, name2, f1Chance, f2Chance, certainty, voidedPercent, winner, winPercent, confidence, confColor, breakdowns) {
+
     const resultsContainer = document.getElementById("predictionResults");
     if (!resultsContainer) return;
 
-    const voidWidth = Math.max(0, Math.min(100, voidedPercent));
-    const remainingWidth = 100 - voidWidth;
-    const f1Width = (remainingWidth * (f1Chance / 100));
-    const f2Width = (remainingWidth * (f2Chance / 100));
+    const btn = document.getElementById("calculatePrediction");
+    const cards = document.querySelectorAll(".card");
+    const searchInputs = document.querySelectorAll(".search-container input");
+    const resultsDiv = document.getElementById("predictionResults");
 
-    let rowsHtml = breakdowns.map(row => {
-        // Color coding: Green for winner, Red for loser, Gray for draw/none
+    // ADD THESE:
+    const f1Width = f1Chance;
+    const f2Width = f2Chance;
+    const voidWidth = voidedPercent;
+
+
+    let rowsHtml = breakdowns
+.filter(row =>
+    row.val1 !== null &&
+    row.val2 !== null &&
+    row.val1 !== "" &&
+    row.val2 !== "" &&
+    row.val1 !== "Unknown" &&
+    row.val2 !== "Unknown"
+)
+.map(row => {
         let f1Col = row.status === "f1_win" ? "#22c55e" : (row.status === "f2_win" ? "#ef4444" : "#9ca3af");
         let f2Col = row.status === "f2_win" ? "#22c55e" : (row.status === "f1_win" ? "#ef4444" : "#9ca3af");
         let arrow1 = row.status === "f1_win" ? "▲" : (row.status === "f2_win" ? "▼" : "-");
@@ -508,43 +622,97 @@ function renderTrueMatchupView(name1, name2, f1Chance, f2Chance, certainty, void
             <div style="margin-top: 5px;">${rowsHtml}</div>
         </div>
     `;
+
+    if (!isShowingResults) {
+    // --- PUT YOUR EXISTING CALCULATION MATH HERE ---
+
+    // 1. Hide the input cards and show the results
+    cards.forEach(card => card.style.display = 'none');
+    resultsDiv.style.display = 'block';
+    
+    // 2. Disable search bars so they are forced to go back
+    searchInputs.forEach(input => input.disabled = true);
+    
+    // 3. Change button text
+    btn.innerText = "Go Back";
+    isShowingResults = true;
+
+  } else {
+    // --- "GO BACK" LOGIC ---
+    
+    // 1. Bring the input cards back and hide results
+    cards.forEach(card => card.style.display = 'block');
+    resultsDiv.style.display = 'none';
+    
+    // 2. Re-enable search bars
+    searchInputs.forEach(input => input.disabled = false);
+    
+    // 3. Revert button text
+    btn.innerText = "Calculate Prediction";
+    isShowingResults = false;
+  }
 }
 
 // ==========================================
 // DETAILED PARSERS & ENGINE HELPERS
 // ==========================================
 function parseHistoryStats(historyArray, fighterObj) {
+
     let wins = fighterObj?.wins || 0;
     let losses = fighterObj?.losses || 0;
     let kos = fighterObj?.kos || 0;
+    let koLosses = fighterObj?.koLosses || 0;
 
-    if (historyArray && historyArray.length > 0) {
+    if (historyArray && historyArray.length) {
+
         wins = 0;
         losses = 0;
         kos = 0;
-        historyArray.forEach(f => {
-            const outcome = (f.outcome || f.result || "").toLowerCase();
-            if (outcome === "win") {
-                wins++;
-                const method = (f.method || "").toLowerCase();
-                if (method.includes("ko") || method.includes("tko")) kos++;
-            } else if (outcome === "loss") {
-                losses++;
-            }
-        });
-    }
+        koLosses = 0;
 
-    if (kos === 0 && wins > 0 && (!historyArray || !historyArray.length)) {
-        kos = Math.round(wins * 0.45);
+        historyArray.forEach(fight => {
+
+            const outcome = (fight.outcome || fight.result || "").toLowerCase();
+            const method = (fight.method || "").toLowerCase();
+
+            if (outcome === "win") {
+
+                wins++;
+
+                if (method.includes("ko") || method.includes("tko"))
+                    kos++;
+
+            }
+
+            else if (outcome === "loss") {
+
+                losses++;
+
+                if (method.includes("ko") || method.includes("tko"))
+                    koLosses++;
+
+            }
+
+        });
+
     }
 
     const total = wins + losses;
-    return { 
-        totalFights: total || 1, 
-        winRatio: wins / (total || 1), 
-        koRatio: wins > 0 ? (kos / wins) : 0, 
-        recordStr: `${wins}-${losses}` 
+
+    return {
+
+        totalFights: total,
+
+        winRatio: total ? wins / total : null,
+
+        koRatio: wins ? kos / wins : null,
+
+        koLossRatio: losses ? koLosses / losses : null,
+
+        recordStr: `${wins}-${losses}`
+
     };
+
 }
 
 function calculateMomentumScore(historyArray, fighterObj) {
@@ -577,19 +745,48 @@ function calculateMomentumScore(historyArray, fighterObj) {
     return Math.max(35, Math.min(95, momentum));
 }
 
-function evaluateSharedHistory(history1, history2, id1, id2) {
-    return { hasData: true, f1Score: 4, f2Score: 2 };
+function evaluateSharedHistory(f1, f2) {
+    const hist1 = f1?.history || [];
+    const hist2 = f2?.history || [];
+    let f1Score = 0;
+    let f2Score = 0;
+    let hasData = false;
+
+    // 1. Direct Matchups
+    hist1.forEach(fight => {
+        if (fight.opponentName?.toLowerCase() === f2.name?.toLowerCase() || fight.opponentId === f2.id) {
+            hasData = true;
+            if ((fight.outcome || "").toLowerCase() === "win") f1Score += 5;
+            else if ((fight.outcome || "").toLowerCase() === "loss") f2Score += 5;
+        }
+    });
+
+    // 2. Shared Opponents
+    const f1Opponents = hist1.map(f => f.opponentName?.toLowerCase()).filter(n => n);
+    const shared = hist2.map(f => f.opponentName?.toLowerCase()).filter(n => n && f1Opponents.includes(n));
+    const uniqueShared = [...new Set(shared)];
+
+    uniqueShared.forEach(oppName => {
+        hasData = true;
+        const f1VsOpp = hist1.filter(f => f.opponentName?.toLowerCase() === oppName);
+        const f2VsOpp = hist2.filter(f => f.opponentName?.toLowerCase() === oppName);
+
+        const f1Wins = f1VsOpp.filter(f => (f.outcome || "").toLowerCase() === "win").length;
+        const f2Wins = f2VsOpp.filter(f => (f.outcome || "").toLowerCase() === "win").length;
+
+        if (f1Wins > f2Wins) f1Score += 3;
+        else if (f2Wins > f1Wins) f2Score += 3;
+        else {
+            f1Score += 1;
+            f2Score += 1;
+        }
+    });
+
+    return { hasData, f1Score, f2Score };
 }
 
-function findFighterInApplication(name) {
-    if (window.fighters && Array.isArray(window.fighters)) {
-        return window.fighters.find(f => f.name?.toLowerCase() === name.toLowerCase());
-    }
-    return null;
-}
-
-function createFallbackProfile(name, elo, w, l, kos, age, h, r, lbs) {
-    return { name, elo, wins: w, losses: l, kos: kos, age, height: h, reach: r, weight: lbs, history: [] };
+function createFallbackProfile(name, elo, w, l, kos, age, h, r, kg) {
+    return { name, elo, wins: w, losses: l, kos: kos, age, height: h, reach: r, weight: kg, history: [] };
 }
 
 window.restorePredictionInputs = function() {
@@ -600,31 +797,44 @@ window.restorePredictionInputs = function() {
 
 function getPredictionFormInputs() {
     const processSide = (prefix, extraPrefix) => {
-        // Core Checkbox extraction points
         const athKnown = document.getElementById("toggle_athleticism")?.checked || false;
         const carKnown = document.getElementById("toggle_cardio")?.checked || false;
-        const durKnown = document.getElementById("toggle_durability")?.checked || false;
+        const chinKnown = document.getElementById("toggle_chin")?.checked || false;
+        const koKnown = document.getElementById("toggle_ko")?.checked || false;
 
         return {
             stance: document.getElementById(`${prefix}_stance`)?.value || "",
-            movement: getSelectedCheckboxes(`multiselect_${prefix}_movement`),
+            movement: typeof getSelectedCheckboxes === 'function' ? getSelectedCheckboxes(`multiselect_${prefix}_movement`) : [],
             range: document.getElementById(`${prefix}_range`)?.value || "",
-            age: document.getElementById(`${extraPrefix}_age`)?.value ? parseInt(document.getElementById(`${extraPrefix}_age`).value) : null,
-            height: document.getElementById(`${extraPrefix}_height`)?.value ? parseFloat(document.getElementById(`${extraPrefix}_height`).value) : null,
-            reach: document.getElementById(`${extraPrefix}_reach`)?.value ? parseFloat(document.getElementById(`${extraPrefix}_reach`).value) : null,
-            weight: document.getElementById(`${extraPrefix}_weight`)?.value ? parseFloat(document.getElementById(`${extraPrefix}_weight`).value) : null,
             
-            // Strictly returns a Number if checked, strictly returns null if unchecked
-            athleticism: athKnown ? Number(document.getElementById(`${extraPrefix}_athleticism`)?.value || 5) : null,
-            cardio: carKnown ? Number(document.getElementById(`${extraPrefix}_cardio`)?.value || 5) : null,
-            durability: durKnown ? Number(document.getElementById(`${extraPrefix}_durability`)?.value || 5) : null
+            age: document.getElementById(`${extraPrefix}_age`)?.value ? Math.max(16, Math.abs(parseInt(document.getElementById(`${extraPrefix}_age`).value))) : null,
+            height: document.getElementById(`${extraPrefix}_height`)?.value ? Math.max(1, Math.abs(parseFloat(document.getElementById(`${extraPrefix}_height`).value))) : null,
+            reach: document.getElementById(`${extraPrefix}_reach`)?.value ? Math.max(1, Math.abs(parseFloat(document.getElementById(`${extraPrefix}_reach`).value))) : null,
+            weight: document.getElementById(`${extraPrefix}_weight`)?.value ? Math.max(1, Math.abs(parseFloat(document.getElementById(`${extraPrefix}_weight`).value))) : null,
+            
+            // Here is the missing part that gets the values from the sliders!
+            athleticism: athKnown ? parseInt(document.getElementById(`${extraPrefix}_athleticism`).value) : null,
+            cardio: carKnown ? parseInt(document.getElementById(`${extraPrefix}_cardio`).value) : null,
+            chin: chinKnown ? parseInt(document.getElementById(`${extraPrefix}_chin`).value) : null,
+            ko: koKnown ? parseInt(document.getElementById(`${extraPrefix}_ko`).value) : null
         };
     };
-    return { f1: processSide("style1", "extra1"), f2: processSide("style2", "extra2") };
+
+    return {
+        f1: processSide('style1', 'extra1'),
+        f2: processSide('style2', 'extra2')
+    };
 }
 
 function getSelectedCheckboxes(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
     return Array.from(container.querySelectorAll("input[type='checkbox']:checked")).map(cb => cb.value);
+}
+
+function findFighterInApplication(name) {
+    if (window.fighters && Array.isArray(window.fighters)) {
+        return window.fighters.find(f => f.name?.toLowerCase() === name.toLowerCase());
+    }
+    return null;
 }
