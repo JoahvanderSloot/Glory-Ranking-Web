@@ -547,36 +547,290 @@ input:checked + .slider:before {
 
 .prediction-sticky {
   position: sticky;
-  top: 30px; /* Readjust this if your main layout header is thick */
+  top: 30px;
   z-index: 100;
-  background: #1a1a1a; /* Match your app background */
+  background: #1a1a1a;
   padding: 15px;
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.5);
   display: flex;
   align-items: flex-end;
   gap: 15px;
+  flex-wrap: wrap;
 }
+
 .sticky-fighter-input {
   flex: 1;
+  min-width: 220px;
 }
 
-/* Ensure structure matches standard table columns */
-.prediction-table .prediction-header, 
-.prediction-table .prediction-row {
+.vs {
+  font-weight: bold;
+  color: gold;
+  padding: 0 8px;
+}
+
+#predictions .prediction-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#predictions .prediction-table .prediction-header,
+#predictions .prediction-table .prediction-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 15px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #333;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
 }
 
-/* Custom Multiselect Elements */
-.custom-multiselect {
-  position: relative;
-  width: 100%;
+.prediction-header,
+.prediction-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
 }
+
+.prediction-header {
+  font-weight: bold;
+  color: gold;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+}
+
+.prediction-row label {
+  color: #fff;
+  font-weight: 600;
+}
+
+.prediction-row select,
+.prediction-row input,
+.prediction-row .custom-multiselect {
+  margin-bottom: 0;
+}
+
+.prediction-side-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prediction-side-label {
+  font-size: 12px;
+  color: #f5d36b;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.prediction-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.prediction-file-btn {
+  margin-right: auto;
+}
+
+.prediction-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prediction-help-trigger,
+.prediction-file-btn,
+.prediction-modal-close,
+.saved-prediction-actions button,
+.saved-predictions-footer button {
+  border: 1px solid gold;
+  background: #1a1a1a;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.prediction-help-trigger:hover,
+.prediction-file-btn:hover,
+.prediction-modal-close:hover,
+.saved-prediction-actions button:hover,
+.saved-predictions-footer button:hover {
+  background: #2b2b2b;
+}
+
+.prediction-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.prediction-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: 85vh;
+  background: #111;
+  border: 1px solid gold;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.prediction-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.prediction-modal-body {
+  padding: 24px 24px 28px;
+  overflow-y: auto;
+  max-height: 85vh;
+  line-height: 1.6;
+}
+
+.prediction-modal-body h3 {
+  margin-bottom: 12px;
+}
+
+.prediction-modal-body p {
+  margin-bottom: 10px;
+  color: #ddd;
+}
+
+.saved-predictions-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: min(360px, 100%);
+  background: #0f0f0f;
+  border-right: 1px solid gold;
+  z-index: 1500;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+}
+
+.saved-predictions-drawer.open {
+  transform: translateX(0);
+}
+
+.saved-predictions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.saved-predictions-subtitle {
+  font-size: 13px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+.saved-predictions-topbar {
+  padding: 12px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.saved-predictions-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.saved-predictions-status {
+  font-size: 12px;
+  color: #f5d36b;
+  min-height: 16px;
+}
+
+.saved-predictions-list {
+  padding: 16px 20px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saved-prediction-card {
+  background: #161616;
+  border: 1px solid #2d2d2d;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.saved-prediction-card strong {
+  color: #fff;
+}
+
+.saved-prediction-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-prediction-badge {
+  font-size: 12px;
+  color: gold;
+  font-weight: bold;
+}
+
+.saved-prediction-meta {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 6px;
+}
+
+.saved-prediction-breakdown {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ddd;
+  line-height: 1.4;
+}
+
+.saved-prediction-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.saved-predictions-empty {
+  color: #aaa;
+  font-size: 14px;
+  padding: 10px 0;
+}
+
+.saved-predictions-footer {
+  padding: 12px 20px 20px;
+  border-top: 1px solid #2b2b2b;
+}
+
+.prediction-print-shell {
+  display: none;
+}
+
 .custom-multiselect .select-box input {
   width: 100%;
   cursor: pointer;
@@ -777,21 +1031,89 @@ input:checked + .slider:before {
         font-size: 16px;
         cursor: pointer;
     }
+}
+
+@media (max-width: 900px) {
+    .prediction-page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .prediction-title-group {
+        justify-content: space-between;
+    }
+
+    .prediction-modal {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .prediction-modal-body {
+        max-height: 100vh;
+        padding: 20px 18px 24px;
+    }
+
+    .saved-predictions-drawer {
+        width: 100vw;
+    }
 
     .prediction-sticky {
         position: static;
         flex-direction: column;
         align-items: stretch;
+        padding: 14px;
+        gap: 12px;
     }
 
-    .prediction-table .prediction-header,
-    .prediction-table .prediction-row {
-        grid-template-columns: 1fr;
-        gap: 8px;
+    .sticky-fighter-input {
+        min-width: 0;
+        width: 100%;
     }
 
-    .prediction-table .prediction-row label {
-        margin-bottom: 4px;
+    .prediction-sticky > button {
+        width: 100%;
+        padding: 12px 14px;
+        font-size: 15px;
+    }
+
+    .prediction-header {
+        display: none;
+    }
+
+    .prediction-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px 0 14px;
+        border-bottom: 1px solid #2d2d2d;
+    }
+
+    .prediction-row label {
+        margin-bottom: 2px;
+        font-size: 14px;
+        color: #fff;
+    }
+
+    .prediction-row select,
+    .prediction-row input,
+    .prediction-row .custom-multiselect {
+        width: 100%;
+        min-width: 0;
+        font-size: 15px;
+        padding: 10px 12px;
+    }
+
+    .prediction-row .custom-multiselect {
+        position: relative;
+    }
+
+    .prediction-row .custom-multiselect .select-box input {
+        padding: 10px 12px;
+        font-size: 15px;
     }
 
     .action-buttons {

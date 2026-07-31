@@ -7,6 +7,369 @@ let predictionSelection = {
     fighter2: null
 };
 
+let currentPredictionSnapshot = null;
+let savedPredictions = [];
+let isSavedPredictionsDrawerOpen = false;
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function loadSavedPredictions() {
+    const sessionMarker = sessionStorage.getItem("glory_prediction_library_session");
+    if (sessionMarker) {
+        savedPredictions = [];
+        sessionStorage.removeItem("glory_prediction_library");
+    } else {
+        try {
+            const raw = sessionStorage.getItem("glory_prediction_library");
+            savedPredictions = raw ? JSON.parse(raw) : [];
+        } catch (error) {
+            savedPredictions = [];
+        }
+    }
+
+    sessionStorage.setItem("glory_prediction_library_session", "active");
+    renderSavedPredictionsDrawer();
+}
+
+function persistSavedPredictions() {
+    sessionStorage.setItem("glory_prediction_library", JSON.stringify(savedPredictions));
+    renderSavedPredictionsDrawer();
+}
+
+function openPredictionInfoModal() {
+    const modal = document.getElementById("predictionInfoModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function closePredictionInfoModal() {
+    const modal = document.getElementById("predictionInfoModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+function toggleSavedPredictionsDrawer(forceOpen) {
+    const drawer = document.getElementById("savedPredictionsDrawer");
+    if (!drawer) return;
+
+    const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !drawer.classList.contains("open");
+    drawer.classList.toggle("open", shouldOpen);
+    drawer.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+    isSavedPredictionsDrawerOpen = shouldOpen;
+}
+
+function updateSavedPredictionsStatus(message) {
+    const status = document.getElementById("savedPredictionsStatus");
+    if (status) {
+        status.textContent = message;
+    }
+}
+
+function renderSavedPredictionsDrawer() {
+    const drawer = document.getElementById("savedPredictionsDrawer");
+    const list = document.getElementById("savedPredictionsList");
+    if (!list) return;
+
+    if (!savedPredictions.length) {
+        list.innerHTML = '<div class="saved-predictions-empty">No saved predictions yet.</div>';
+        updateSavedPredictionsStatus("Your saved predictions will appear here.");
+        return;
+    }
+
+    list.innerHTML = savedPredictions.map((prediction, index) => {
+        const breakdownDetails = (prediction.result?.breakdowns || [])
+            .filter(item => item?.val1 !== null && item?.val2 !== null && item?.val1 !== "" && item?.val2 !== "" && item?.val1 !== "Unknown" && item?.val2 !== "Unknown")
+            .map(item => `
+                <div>${escapeHtml(item.label)}: ${escapeHtml(item.val1)} vs ${escapeHtml(item.val2)}</div>
+            `).join("");
+
+        return `
+            <div class="saved-prediction-card">
+                <div class="saved-prediction-top">
+                    <strong>${escapeHtml(prediction.fighter1Name || "Fighter 1")} vs ${escapeHtml(prediction.fighter2Name || "Fighter 2")}</strong>
+                    <span class="saved-prediction-badge">${escapeHtml(prediction.result?.winnerName || "Draw")}</span>
+                </div>
+                <div class="saved-prediction-meta">${escapeHtml(prediction.result?.bannerWinPercent || "0")}% win chance • ${escapeHtml(prediction.result?.activePercent || "0")}% active data</div>
+                <div class="saved-prediction-breakdown">${breakdownDetails}</div>
+                <div class="saved-prediction-actions">
+                    <button type="button" onclick="loadSavedPrediction(${index})">Load</button>
+                    <button type="button" onclick="deleteSavedPrediction(${index})">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    updateSavedPredictionsStatus(`${savedPredictions.length} saved prediction${savedPredictions.length === 1 ? "" : "s"}`);
+
+    if (drawer) {
+        drawer.classList.toggle("open", isSavedPredictionsDrawerOpen);
+    }
+}
+
+function buildCurrentPredictionSnapshot() {
+    const button = document.getElementById("calculatePrediction");
+    const currentResult = currentPredictionSnapshot?.result || {};
+
+    return {
+        fighter1Name: document.getElementById("predictionSearch1")?.value.trim() || "Fighter 1",
+        fighter2Name: document.getElementById("predictionSearch2")?.value.trim() || "Fighter 2",
+        fighter1Id: predictionSelection.fighter1?.id || null,
+        fighter2Id: predictionSelection.fighter2?.id || null,
+        formInputs: getPredictionFormInputs(),
+        result: {
+            f1OverallPercent: currentResult.f1OverallPercent,
+            f2OverallPercent: currentResult.f2OverallPercent,
+            activePercent: currentResult.activePercent,
+            voidedPercent: currentResult.voidedPercent,
+            winnerName: currentResult.winnerName,
+            bannerWinPercent: currentResult.bannerWinPercent,
+            confidence: currentResult.confidence,
+            confColor: currentResult.confColor,
+            breakdowns: currentResult.breakdowns || []
+        },
+        savedAt: new Date().toLocaleString(),
+        buttonLabel: button?.innerText || "Go Back"
+    };
+}
+
+function saveCurrentPrediction() {
+    if (!currentPredictionSnapshot) {
+        alert("Generate a prediction first before saving it.");
+        return;
+    }
+
+    const snapshot = buildCurrentPredictionSnapshot();
+    savedPredictions.unshift(snapshot);
+    persistSavedPredictions();
+    toggleSavedPredictionsDrawer(true);
+    updateSavedPredictionsStatus("Saved to library and opened");
+}
+
+function applyPredictionSnapshot(snapshot) {
+    if (!snapshot) return;
+
+    document.getElementById("predictionSearch1").value = snapshot.fighter1Name || "";
+    document.getElementById("predictionSearch2").value = snapshot.fighter2Name || "";
+
+    predictionSelection.fighter1 = snapshot.fighter1Id ? { id: snapshot.fighter1Id, name: snapshot.fighter1Name || "Fighter 1" } : null;
+    predictionSelection.fighter2 = snapshot.fighter2Id ? { id: snapshot.fighter2Id, name: snapshot.fighter2Name || "Fighter 2" } : null;
+
+    window.currentFighter1 = snapshot.fighter1Id ? (window.fighters || []).find(f => f.id === snapshot.fighter1Id) || null : null;
+    window.currentFighter2 = snapshot.fighter2Id ? (window.fighters || []).find(f => f.id === snapshot.fighter2Id) || null : null;
+
+    document.getElementById("styleName1").innerHTML = snapshot.fighter1Name || "Fighter 1";
+    document.getElementById("styleName2").innerHTML = snapshot.fighter2Name || "Fighter 2";
+    document.querySelectorAll(".fighter-name-label-1").forEach(el => el.innerHTML = snapshot.fighter1Name || "Fighter 1");
+    document.querySelectorAll(".fighter-name-label-2").forEach(el => el.innerHTML = snapshot.fighter2Name || "Fighter 2");
+
+    const inputs = snapshot.formInputs || {};
+    const applySide = (prefix, extraPrefix, sideInputs) => {
+        const sideId = prefix === "style1" ? 1 : 2;
+        Object.entries(sideInputs || {}).forEach(([key, value]) => {
+            if (key === "movement" || key === "strikingIdentity" || key === "favoriteStrike" || key === "defense") {
+                const checkboxBase = `${prefix}_${key}`;
+                const container = document.getElementById(`multiselect_${checkboxBase}`);
+                const textInput = document.getElementById(`${checkboxBase}_text`);
+                if (container && textInput) {
+                    const values = Array.isArray(value) ? value : [];
+                    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                        cb.checked = values.includes(cb.value);
+                    });
+                    textInput.value = values.join(", ");
+                }
+                return;
+            }
+
+            if (key === "athleticism" || key === "cardio" || key === "durability") {
+                const toggle = document.getElementById(`toggle_${key}`);
+                const slider = document.getElementById(`${extraPrefix}_${key}`);
+                const sliderValue = document.getElementById(`${key}Value${sideId}`);
+                const numericValue = value != null ? value : 5;
+                if (toggle) toggle.checked = value != null;
+                if (slider) slider.value = numericValue;
+                if (sliderValue) sliderValue.textContent = value != null ? `${numericValue}/10` : "Unknown";
+                window.toggleSliderInput(key);
+                return;
+            }
+
+            const el = document.getElementById(`${prefix}_${key}`) || document.getElementById(`${extraPrefix}_${key}`);
+            if (!el) return;
+
+            if (el.tagName === "SELECT") {
+                const desired = String(value || "");
+                for (let i = 0; i < el.options.length; i++) {
+                    if (el.options[i].value === desired) {
+                        el.selectedIndex = i;
+                        break;
+                    }
+                }
+            } else if (el.type === "number") {
+                el.value = value != null ? value : "";
+            } else if (el.type === "range") {
+                el.value = value != null ? value : 5;
+            }
+        });
+    };
+
+    applySide("style1", "extra1", inputs.f1);
+    applySide("style2", "extra2", inputs.f2);
+    updatePredictionButton();
+}
+
+function showPredictionResultsFromSnapshot(snapshot) {
+    const cards = document.querySelectorAll(".card");
+    const searchInputs = document.querySelectorAll(".search-container input");
+    const resultsDiv = document.getElementById("predictionResults");
+    const button = document.getElementById("calculatePrediction");
+
+    cards.forEach(card => card.style.display = "none");
+    searchInputs.forEach(input => input.disabled = true);
+    if (resultsDiv) resultsDiv.style.display = "block";
+    if (button) button.innerText = "Go Back";
+    isShowingResults = true;
+
+    currentPredictionSnapshot = snapshot;
+    renderMatchupResultsView(
+        snapshot.fighter1Name || "Fighter 1",
+        snapshot.fighter2Name || "Fighter 2",
+        snapshot.result?.f1OverallPercent ?? 50,
+        snapshot.result?.f2OverallPercent ?? 50,
+        snapshot.result?.activePercent ?? 100,
+        snapshot.result?.voidedPercent ?? 0,
+        snapshot.result?.winnerName || "Draw / Even",
+        snapshot.result?.bannerWinPercent ?? 50,
+        snapshot.result?.confidence || "Low Data Reliability",
+        snapshot.result?.confColor || "#ef4444",
+        snapshot.result?.breakdowns || []
+    );
+}
+
+function loadSavedPrediction(index) {
+    const snapshot = savedPredictions[index];
+    if (!snapshot) return;
+
+    applyPredictionSnapshot(snapshot);
+    showPredictionResultsFromSnapshot(snapshot);
+    toggleSavedPredictionsDrawer(false);
+}
+
+function deleteSavedPrediction(index) {
+    savedPredictions.splice(index, 1);
+    persistSavedPredictions();
+}
+
+async function downloadSavedPredictionsPdf() {
+    if (!savedPredictions.length) {
+        alert("There are no saved predictions to download.");
+        return;
+    }
+
+    const getExportLines = (prediction) => {
+        return (prediction.result?.breakdowns || [])
+            .filter(item => item?.val1 !== null && item?.val2 !== null && item?.val1 !== "" && item?.val2 !== "" && item?.val1 !== "Unknown" && item?.val2 !== "Unknown")
+            .map(item => `${item.label}: ${item.val1} vs ${item.val2}`);
+    };
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 36;
+        const cardWidth = pageWidth - margin * 2;
+
+        const drawCard = (prediction, x, y, width) => {
+            pdf.setFillColor(250, 247, 214);
+            pdf.setTextColor(17, 24, 39);
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(14);
+            const title = `${prediction.fighter1Name || "Fighter 1"} vs ${prediction.fighter2Name || "Fighter 2"}`;
+            const titleLines = pdf.splitTextToSize(title, width - 32);
+
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(9.5);
+            pdf.setTextColor(55, 65, 81);
+            const lines = [
+                `Winner: ${prediction.result?.winnerName || "Draw"}`,
+                `Win chance: ${prediction.result?.bannerWinPercent || "0"}%`,
+                `Active data: ${prediction.result?.activePercent || "0"}%`
+            ];
+            const exportLines = getExportLines(prediction);
+            const allLines = [...lines, "", ...exportLines];
+            const textLines = pdf.splitTextToSize(allLines.join("\n"), width - 32);
+            const contentHeight = 24 + titleLines.length * 14 + textLines.length * 10;
+            const height = Math.min(Math.max(180, contentHeight + 22), pageHeight - margin * 2);
+
+            pdf.roundedRect(x, y, width, height, 10, 10, "FD");
+            pdf.text(titleLines, x + 16, y + 24);
+            pdf.text(textLines, x + 16, y + 44);
+        };
+
+        savedPredictions.forEach((prediction, index) => {
+            if (index > 0) {
+                pdf.addPage();
+            }
+            drawCard(prediction, margin, margin, cardWidth);
+        });
+
+        const pdfBlob = pdf.output("blob");
+
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: "saved-predictions.pdf",
+                    types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(pdfBlob);
+                await writable.close();
+                return;
+            } catch (pickerError) {
+                console.warn("File picker cancelled or unavailable.", pickerError);
+            }
+        }
+
+        pdf.save("saved-predictions.pdf");
+        return;
+    } catch (error) {
+        console.warn("PDF export unavailable, falling back to print preview.", error);
+    }
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) {
+        alert("Please allow popups to export the saved predictions as a printable document.");
+        return;
+    }
+
+    const rows = savedPredictions.map(prediction => `
+        <section style="border:1px solid #d4af37;border-radius:10px;padding:14px 16px;background:#fff7d6;margin-bottom:12px;">
+            <h3 style="margin:0 0 8px 0;font-size:16px;">${escapeHtml(prediction.fighter1Name || "Fighter 1")} vs ${escapeHtml(prediction.fighter2Name || "Fighter 2")}</h3>
+            <div style="font-size:12px;color:#374151;line-height:1.6;">
+                <div><strong>Winner:</strong> ${escapeHtml(prediction.result?.winnerName || "Draw")}</div>
+                <div><strong>Win chance:</strong> ${escapeHtml(prediction.result?.bannerWinPercent || "0")}%</div>
+                <div><strong>Active data:</strong> ${escapeHtml(prediction.result?.activePercent || "0")}%</div>
+                ${((prediction.result?.breakdowns || [])
+                    .filter(item => item?.val1 !== null && item?.val2 !== null && item?.val1 !== "" && item?.val2 !== "" && item?.val1 !== "Unknown" && item?.val2 !== "Unknown")
+                    .map(item => `<div><strong>${escapeHtml(item.label)}:</strong> ${escapeHtml(item.val1)} vs ${escapeHtml(item.val2)}</div>`)).join("")}
+            </div>
+        </section>
+    `).join("");
+
+    printWindow.document.write(`<!doctype html><html><head><title>Saved Predictions</title><style>body{font-family:Arial,sans-serif;padding:24px;background:#f5f5f5;color:#111}h2{margin-top:0}section{page-break-inside:avoid}</style></head><body><h2>Saved predictions</h2>${rows}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+}
+
 function initSlidersOnLoad() {
     const features = ["durability", "cardio", "athleticism"]; 
     features.forEach(feature => {
@@ -17,7 +380,33 @@ function initSlidersOnLoad() {
     });
 }
 
-document.addEventListener("DOMContentLoaded", initSlidersOnLoad);
+document.addEventListener("DOMContentLoaded", () => {
+    initSlidersOnLoad();
+    loadSavedPredictions();
+});
+
+window.addEventListener("beforeunload", (event) => {
+    if (savedPredictions.length) {
+        event.preventDefault();
+        event.returnValue = "";
+    }
+});
+
+window.addEventListener("click", (event) => {
+    if (!isSavedPredictionsDrawerOpen) return;
+    const drawer = document.getElementById("savedPredictionsDrawer");
+    const toggle = document.getElementById("savedPredictionsToggle");
+    if (drawer && !event.target.closest(".saved-predictions-drawer") && !event.target.closest("#savedPredictionsToggle")) {
+        toggleSavedPredictionsDrawer(false);
+    }
+});
+
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        closePredictionInfoModal();
+        toggleSavedPredictionsDrawer(false);
+    }
+});
 
 // ==========================================
 // SEARCH & AUTOCOMPLETE FOR FIGHTERS
@@ -239,6 +628,13 @@ window.searchPrediction2 = searchPrediction2;
 window.selectPredictionFighter = selectPredictionFighter;
 window.closePredictionDropdown = closePredictionDropdown;
 window.calculatePrediction = calculatePrediction;
+window.openPredictionInfoModal = openPredictionInfoModal;
+window.closePredictionInfoModal = closePredictionInfoModal;
+window.toggleSavedPredictionsDrawer = toggleSavedPredictionsDrawer;
+window.saveCurrentPrediction = saveCurrentPrediction;
+window.loadSavedPrediction = loadSavedPrediction;
+window.deleteSavedPrediction = deleteSavedPrediction;
+window.downloadSavedPredictionsPdf = downloadSavedPredictionsPdf;
 
 export const PREDICTION_CONFIG = {
     weights: {
@@ -775,6 +1171,26 @@ export function calculatePrediction() {
     btn.innerText = "Go Back";
     isShowingResults = true;
 
+    currentPredictionSnapshot = {
+        fighter1Name: name1,
+        fighter2Name: name2,
+        fighter1Id: predictionSelection.fighter1?.id || null,
+        fighter2Id: predictionSelection.fighter2?.id || null,
+        formInputs: getPredictionFormInputs(),
+        result: {
+            f1OverallPercent: finalF1Percentage,
+            f2OverallPercent: finalF2Percentage,
+            activePercent: activePercentage,
+            voidedPercent: voidedPercentage,
+            winnerName,
+            bannerWinPercent,
+            confidence: confidenceRating,
+            confColor: confidenceColor,
+            breakdowns: categoryBreakdowns
+        },
+        savedAt: new Date().toLocaleString()
+    };
+
     renderMatchupResultsView(name1, name2, finalF1Percentage, finalF2Percentage, activePercentage, voidedPercentage, winnerName, bannerWinPercent, confidenceRating, confidenceColor, categoryBreakdowns);
 }
 
@@ -806,6 +1222,10 @@ function renderMatchupResultsView(name1, name2, f1OverallPercent, f2OverallPerce
 
     resultsContainer.innerHTML = `
         <div class="card" style="margin-top:20px; background: #121212; border: 1px solid #d4af37; border-radius: 8px; padding: 25px; color: #fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+                <div style="font-size:13px; color:#aaa;">Prediction snapshot</div>
+                <button type="button" onclick="event.stopPropagation(); saveCurrentPrediction()" style="padding:8px 12px; border-radius:8px; border:1px solid gold; background:#1a1a1a; color:white; cursor:pointer;">Save</button>
+            </div>
             
             <!-- BANNER HEADER -->
             <div style="background: linear-gradient(135deg, #1e1b4b, #311042); border-left: 5px solid #d4af37; padding: 20px; border-radius: 6px; margin-bottom: 25px; text-align: center;">
