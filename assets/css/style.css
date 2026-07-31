@@ -56,6 +56,10 @@ nav ul li:hover {
     color: gold;
 }
 
+.nav-link.admin-link {
+    display: block;
+}
+
 .page {
     flex: 1;
     width: 100%;
@@ -100,17 +104,18 @@ nav ul li:hover {
 /* STATS GRID */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
 }
 
 /* FIGHT ROW */
 .fight-row {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr 1fr 1fr;
+    grid-template-columns: 90px 1fr 80px 80px 70px;
     padding: 10px;
     border-bottom: 1px solid #222;
     font-size: 14px;
+    align-items: center;
 }
 
 .fight-row:hover {
@@ -216,7 +221,7 @@ button:hover::after {
     left: 125%;
 }
 
-@media(max-width: 600px) {
+@media (max-width: 600px) {
     nav {
         flex-direction: column;
         align-items: flex-start;
@@ -227,46 +232,36 @@ button:hover::after {
         width: 100%;
         justify-content: space-between;
     }
+
+    .nav-link.admin-link {
+        display: none;
+    }
 }
 
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
+@media (max-width: 768px) {
+    .fight-row {
+        grid-template-columns: 1fr 1fr;
+        font-size: 12px;
+        gap: 5px;
+    }
 
-.fight-row {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr 1fr 1fr;
-    padding: 10px;
-    border-bottom: 1px solid #222;
-    font-size: 14px;
-}
+    .fight-row span:nth-child(3),
+    .fight-row span:nth-child(4),
+    .fight-row span:nth-child(5) {
+        display: none;
+    }
 
-@media(max-width: 768px) {
-  .fight-row {
-    grid-template-columns: 1fr 1fr;
-    font-size: 12px;
-    gap: 5px;
-  }
+    .fight-row .opponent.win::before {
+        content: "W ";
+        color: #4caf50;
+        font-weight: bold;
+    }
 
-  .fight-row span:nth-child(3),
-  .fight-row span:nth-child(4),
-  .fight-row span:nth-child(5) {
-    display: none;
-  }
-
-  .fight-row .opponent.win::before {
-    content: "W ";
-    color: #4caf50;
-    font-weight: bold;
-  }
-
-  .fight-row .opponent.loss::before {
-    content: "L ";
-    color: #ff4d4d;
-    font-weight: bold;
-  }
+    .fight-row .opponent.loss::before {
+        content: "L ";
+        color: #ff4d4d;
+        font-weight: bold;
+    }
 }
 
 .chart-container {
@@ -291,21 +286,8 @@ button:hover::after {
 }
 
 @media (max-width: 768px) {
-    h2{
+    h2 {
         margin-top: 20px;
-    }
-}
-
-@media(max-width: 768px) {
-    .fight-row {
-        grid-template-columns: 1fr 1fr;
-        font-size: 12px;
-    }
-
-    .fight-row span:nth-child(3),
-    .fight-row span:nth-child(4),
-    .fight-row span:nth-child(5) {
-        display: none;
     }
 }
 
@@ -774,28 +756,47 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 600px) {
+    .leaderboard-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
 
-  .leaderboard-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
+    .filter-pill {
+        width: 100%;
+        justify-content: space-between;
+    }
 
-  .filter-pill {
-    width: 80%;
-    justify-content: space-between;
-  }
+    #weightFilter,
+    #genderFilter {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #1a1a1a;
+        color: #fff;
+        border: 1px solid #333;
+        font-size: 16px;
+        cursor: pointer;
+    }
 
-  #weightFilter,
-#genderFilter {
-  width: 220px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #1a1a1a;
-  color: #fff;
-  border: 1px solid #333;
-  font-size: 16px;
-  cursor: pointer;
-}
+    .prediction-sticky {
+        position: static;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .prediction-table .prediction-header,
+    .prediction-table .prediction-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .prediction-table .prediction-row label {
+        margin-bottom: 4px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
 }
 
 /* ==========================================================
@@ -886,6 +887,23 @@ input:checked + .slider:before {
     pointer-events: auto;
     transform: translateX(-50%) scale(1);
     transition-delay: 0.45s; /* Only pops up when you dwell on it */
+}
+
+@media (max-width: 768px) {
+    .info-icon::after {
+        left: 350%;
+        top: calc(100% + 8px);
+        bottom: auto;
+        transform: translateX(-50%);
+        width: min(88vw, 260px);
+    }
+
+    .info-icon::before {
+        left: 50%;
+        top: calc(100% + 2px);
+        bottom: auto;
+        transform: translateX(-50%);
+    }
 }
 
 /* Ensure the container wrapping both the search input and results has this */

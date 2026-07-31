@@ -242,22 +242,255 @@ window.calculatePrediction = calculatePrediction;
 
 export const PREDICTION_CONFIG = {
     weights: {
-        elo: 60,
-        winLossRatio: 40,
-        koPercentage: 25,
-        chin: 25,
-        experience: 25,
-        momentum: 30,
-        pastMatchup: 20, 
-        style: 20,
-        age: 15,
-        heightReach: 20,
-        weight: 15,
-        athleticism: 15,
-        cardio: 20,
-        durability: 20
+        elo: 18,
+        style: 16,
+        winLossRatio: 10,
+        experience: 9,
+        momentum: 9,
+        chin: 8,
+        koPercentage: 5,
+        cardio: 6,
+        heightReach: 5,
+        athleticism: 4,
+        weight: 3,
+        durability: 3,
+        pastMatchup: 4
+    },
+    styleWeights: {
+        stance: 4,
+        movement: 18,
+        range: 15,
+        strikingIdentity: 14,
+        defense: 13,
+        fightIQ: 10,
+        tempo: 9,
+        primaryWeapon: 8,
+        target: 6,
+        favoriteStrike: 3
     }
 };
+
+function getPrimaryChoice(value) {
+    if (Array.isArray(value)) {
+        return value.find(item => item && item !== "Unknown" && item !== "") || value[0] || "";
+    }
+
+    return value || "";
+}
+
+function normalizeStyleValue(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function evaluateStyleMatchup(f1Inputs, f2Inputs) {
+    const styleWeights = PREDICTION_CONFIG.styleWeights;
+    const categories = [
+        {
+            key: "stance",
+            weight: styleWeights.stance,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+                if (v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "southpaw" && v2 === "orthodox") || (v1 === "switch" && (v2 === "orthodox" || v2 === "southpaw"))) {
+                    return { f1: weight, f2: 0 };
+                }
+                if ((v2 === "southpaw" && v1 === "orthodox") || (v2 === "switch" && (v1 === "orthodox" || v1 === "southpaw"))) {
+                    return { f1: 0, f2: weight };
+                }
+
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "movement",
+            weight: styleWeights.movement,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                const rules = {
+                    pressure: { beats: ["mobile", "back foot", "counter"], losesTo: ["ring cutter", "lateral"] },
+                    mobile: { beats: ["planted", "blitz"], losesTo: ["ring cutter", "pressure"] },
+                    counter: { beats: ["blitz", "pressure"], losesTo: ["back foot"] },
+                    backfoot: { beats: ["blitz"], losesTo: ["pressure", "ring cutter"] },
+                    lateral: { beats: ["pressure", "planted"], losesTo: ["ring cutter"] },
+                    planted: { beats: ["pocket"], losesTo: ["mobile", "lateral"] },
+                    blitz: { beats: ["mobile", "slow build"], losesTo: ["counter"] },
+                    ringcutter: { beats: ["mobile", "lateral", "back foot"], losesTo: ["pressure"] }
+                };
+
+                const left = rules[v1] || {};
+                const right = rules[v2] || {};
+                if (left.beats?.includes(v2)) return { f1: weight, f2: 0 };
+                if (right.beats?.includes(v1)) return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "range",
+            weight: styleWeights.range,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                const matchups = {
+                    long: { beats: ["pocket", "clinch"], losesTo: ["mid"] },
+                    mid: { beats: ["long"], losesTo: ["pocket"] },
+                    pocket: { beats: ["mid"], losesTo: ["long", "clinch"] },
+                    clinch: { beats: ["pocket"], losesTo: ["long"] }
+                };
+
+                const left = matchups[v1] || {};
+                const right = matchups[v2] || {};
+                if (left.beats?.includes(v2)) return { f1: weight, f2: 0 };
+                if (right.beats?.includes(v1)) return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "strikingIdentity",
+            weight: styleWeights.strikingIdentity,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                const matchups = {
+                    power: { beats: ["volume"], losesTo: ["precision", "technical"] },
+                    volume: { beats: ["precision"], losesTo: ["power", "technical"] },
+                    precision: { beats: ["power"], losesTo: ["volume", "technical"] },
+                    technical: { beats: [], losesTo: [] }
+                };
+
+                const left = matchups[v1] || {};
+                const right = matchups[v2] || {};
+                if (left.beats?.includes(v2)) return { f1: weight, f2: 0 };
+                if (right.beats?.includes(v1)) return { f1: 0, f2: weight };
+                if (v1 === "technical" && v2 !== "technical") return { f1: weight * 0.7, f2: 0 };
+                if (v2 === "technical" && v1 !== "technical") return { f1: 0, f2: weight * 0.7 };
+                if (v1 === "unorthodox" && v2 === "technical") return { f1: weight * 0.8, f2: 0 };
+                if (v1 === "unorthodox" && v2 === "precision") return { f1: weight * 0.8, f2: 0 };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "target",
+            weight: styleWeights.target,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "head" && v2 === "body") || (v1 === "body" && v2 === "balanced")) return { f1: weight, f2: 0 };
+                if ((v2 === "head" && v1 === "body") || (v2 === "body" && v1 === "balanced")) return { f1: 0, f2: weight };
+                if (v1 === "legs" && v2 === "balanced") return { f1: weight, f2: 0 };
+                if (v2 === "legs" && v1 === "balanced") return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "primaryWeapon",
+            weight: styleWeights.primaryWeapon,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "punches" && v2 === "kicks") || (v1 === "clinch" && v2 === "punches")) return { f1: weight, f2: 0 };
+                if ((v2 === "punches" && v1 === "kicks") || (v2 === "clinch" && v1 === "punches")) return { f1: 0, f2: weight };
+                if (v1 === "knees" && v2 === "clinch") return { f1: weight, f2: 0 };
+                if (v2 === "knees" && v1 === "clinch") return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "favoriteStrike",
+            weight: styleWeights.favoriteStrike,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "jab" && v2 === "pressure") || (v1 === "low kick" && v2 === "planted") || (v1 === "body kick" && v2 === "guard") || (v1 === "uppercut" && v2 === "pressure") || (v1 === "cross" && v2 === "southpaw")) return { f1: weight, f2: 0 };
+                if ((v2 === "jab" && v1 === "pressure") || (v2 === "low kick" && v1 === "planted") || (v2 === "body kick" && v1 === "guard") || (v2 === "uppercut" && v1 === "pressure") || (v2 === "cross" && v1 === "southpaw")) return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "defense",
+            weight: styleWeights.defense,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "guard" && v2 === "punches") || (v1 === "footwork" && v2 === "power") || (v1 === "head movement" && v2 === "punches") || (v1 === "evasion" && v2 === "volume")) return { f1: weight, f2: 0 };
+                if ((v2 === "guard" && v1 === "punches") || (v2 === "footwork" && v1 === "power") || (v2 === "head movement" && v1 === "punches") || (v2 === "evasion" && v1 === "volume")) return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "tempo",
+            weight: styleWeights.tempo,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                const rules = {
+                    constant: { beats: ["slow build"], losesTo: ["counter rhythm"] },
+                    burst: { beats: ["counter"], losesTo: ["constant"] },
+                    slowbuild: { beats: ["counter rhythm"], losesTo: ["burst"] },
+                    counterrhythm: { beats: ["constant"], losesTo: ["slow build"] }
+                };
+
+                const left = rules[v1] || {};
+                const right = rules[v2] || {};
+                if (left.beats?.includes(v2)) return { f1: weight, f2: 0 };
+                if (right.beats?.includes(v1)) return { f1: 0, f2: weight };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        },
+        {
+            key: "fightIQ",
+            weight: styleWeights.fightIQ,
+            evaluate: (a, b, weight) => {
+                const v1 = normalizeStyleValue(a);
+                const v2 = normalizeStyleValue(b);
+                if (!v1 || !v2 || v1 === v2) return { f1: weight * 0.5, f2: weight * 0.5 };
+
+                if ((v1 === "aggressive" && v2 === "defensive") || (v1 === "calculated" && v2 === "aggressive")) return { f1: weight, f2: 0 };
+                if ((v2 === "aggressive" && v1 === "defensive") || (v2 === "calculated" && v1 === "aggressive")) return { f1: 0, f2: weight };
+                if (v1 === "adaptive" && v2 !== "adaptive") return { f1: weight * 0.7, f2: 0 };
+                if (v2 === "adaptive" && v1 !== "adaptive") return { f1: 0, f2: weight * 0.7 };
+                return { f1: weight * 0.5, f2: weight * 0.5 };
+            }
+        }
+    ];
+
+    let f1Score = 0;
+    let f2Score = 0;
+
+    categories.forEach(category => {
+        const value1 = getPrimaryChoice(f1Inputs[category.key]);
+        const value2 = getPrimaryChoice(f2Inputs[category.key]);
+        const result = category.evaluate(value1, value2, category.weight);
+        f1Score += result.f1;
+        f2Score += result.f2;
+    });
+
+    return {
+        f1Score,
+        f2Score,
+        f1Display: `${Math.round(f1Score)} pts`,
+        f2Display: `${Math.round(f2Score)} pts`
+    };
+}
 
 /**
  * Main Calculation Engine
@@ -329,8 +562,8 @@ export function calculatePrediction() {
     });
 
     // 2. PARSE STATS
-    const stats1 = parseHistoryStats(dbF1.history, dbF1);
-    const stats2 = parseHistoryStats(dbF2.history, dbF2);
+    const stats1 = parseHistoryStats(getFightHistory(dbF1), dbF1);
+    const stats2 = parseHistoryStats(getFightHistory(dbF2), dbF2);
 
     // 3. WIN / LOSS RATIO
     const wlDisplay1 = `${Math.round(stats1.winRatio * 100)}% (${stats1.recordStr})`;
@@ -344,7 +577,7 @@ export function calculatePrediction() {
     // 4. KO % (ALWAYS DISPLAYED & CALCULATED)
     evalCategory(
         "koPercentage",
-        "KO %tage (from Wins)",
+        "KO %tage",
         stats1.koRatio,
         stats2.koRatio,
         `${Math.round(stats1.koRatio * 100)}%`,
@@ -359,7 +592,7 @@ export function calculatePrediction() {
     // 5. CHIN % (ALWAYS DISPLAYED & CALCULATED)
     evalCategory(
         "chin",
-        "Chin Resilience (from Losses)",
+        "Chin Resilience",
         stats1.chinRatio,
         stats2.chinRatio,
         `${Math.round(stats1.chinRatio * 100)}%`,
@@ -379,8 +612,8 @@ export function calculatePrediction() {
     });
 
     // 7. MOMENTUM
-    const mom1 = calculateMomentumScore(dbF1.history, dbF1);
-    const mom2 = calculateMomentumScore(dbF2.history, dbF2);
+    const mom1 = calculateMomentumScore(getFightHistory(dbF1), dbF1);
+    const mom2 = calculateMomentumScore(getFightHistory(dbF2), dbF2);
     evalCategory("momentum", "Momentum", mom1, mom2, mom1 !== null ? `${mom1} pts` : "Unknown", mom2 !== null ? `${mom2} pts` : "Unknown", (v1, v2) => {
         const total = v1 + v2;
         if (total === 0) return { f1Share: 0.5, f2Share: 0.5 };
@@ -436,11 +669,12 @@ export function calculatePrediction() {
     });
 
     // 10. STYLE
-    const styleValid1 = uiInputs.f1.stance && uiInputs.f1.stance !== "unknown" && uiInputs.f1.stance !== "Unknown";
-    const styleValid2 = uiInputs.f2.stance && uiInputs.f2.stance !== "unknown" && uiInputs.f2.stance !== "Unknown";
-    const styleVal1 = styleValid1 ? 1 : null;
-    const styleVal2 = styleValid2 ? 1 : null;
-    evalCategory("style", "Style & Stance", styleVal1, styleVal2, uiInputs.f1.stance, uiInputs.f2.stance, () => ({ f1Share: 0.5, f2Share: 0.5 }));
+    const styleMatchup = evaluateStyleMatchup(uiInputs.f1, uiInputs.f2);
+    evalCategory("style", "Style & Stance", styleMatchup.f1Score, styleMatchup.f2Score, styleMatchup.f1Display, styleMatchup.f2Display, (v1, v2) => {
+        const total = v1 + v2;
+        if (total <= 0) return { f1Share: 0.5, f2Share: 0.5 };
+        return { f1Share: v1 / total, f2Share: v2 / total };
+    });
 
     // 11. HEIGHT & REACH
     const h1 = uiInputs.f1.height || dbF1.height;
@@ -599,6 +833,20 @@ function renderMatchupResultsView(name1, name2, f1OverallPercent, f2OverallPerce
 // ==========================================
 // PARSERS & HELPERS
 // ==========================================
+function getFightHistory(fighterObj) {
+    if (!fighterObj) return [];
+    if (Array.isArray(fighterObj.history)) return fighterObj.history;
+    if (Array.isArray(fighterObj.fights)) return fighterObj.fights;
+    if (Array.isArray(fighterObj.matches)) return fighterObj.matches;
+    return [];
+}
+
+function getFighterNameById(id) {
+    if (id === null || id === undefined || id === "") return "";
+    const match = (window.fighters || []).find(f => String(f.id) === String(id));
+    return match?.name || "";
+}
+
 function parseHistoryStats(historyArray, fighterObj) {
     let wins = fighterObj?.wins ?? fighterObj?.win ?? null;
     let losses = fighterObj?.losses ?? fighterObj?.loss ?? null;
@@ -731,8 +979,8 @@ function isNameMatch(nameA, nameB) {
 }
 
 function evaluateSharedHistory(f1, f2) {
-    const hist1 = Array.isArray(f1?.history) ? f1.history : [];
-    const hist2 = Array.isArray(f2?.history) ? f2.history : [];
+    const hist1 = getFightHistory(f1);
+    const hist2 = getFightHistory(f2);
     let f1Score = 0;
     let f2Score = 0;
     let hasData = false;
@@ -744,7 +992,7 @@ function evaluateSharedHistory(f1, f2) {
     const name1 = f1?.name || "";
     const name2 = f2?.name || "";
 
-    // 1. Enhanced opponent parser to handle nested objects
+    // 1. Enhanced opponent parser to handle nested objects and the app's fighter data shape
     const getOpponent = (fight) => {
         if (!fight) return { name: "", id: null };
         let oppName = fight.opponentName || fight.opponent_name || fight.oppName || fight.vs || fight.against || fight.fighter2 || "";
@@ -758,6 +1006,11 @@ function evaluateSharedHistory(f1, f2) {
                 oppId = oppId || fight.opponent.id || fight.opponent.fighterId || fight.opponent._id || null;
             }
         }
+
+        if (!oppName && oppId) {
+            oppName = getFighterNameById(oppId);
+        }
+
         return { name: String(oppName).trim(), id: oppId };
     };
 
@@ -935,9 +1188,23 @@ function getPredictionFormInputs() {
         const carKnown = document.getElementById("toggle_cardio")?.checked || false;
         const durKnown = document.getElementById("toggle_durability")?.checked || false;
 
+        const multiSelectValues = (baseName) => {
+            const container = document.getElementById(`multiselect_${prefix}_${baseName}`);
+            if (!container) return [];
+            return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        };
+
         return {
             stance: document.getElementById(`${prefix}_stance`)?.value || "",
+            movement: multiSelectValues("movement"),
             range: document.getElementById(`${prefix}_range`)?.value || "",
+            strikingIdentity: multiSelectValues("identity"),
+            target: document.getElementById(`${prefix}_target`)?.value || "",
+            primaryWeapon: document.getElementById(`${prefix}_weapon`)?.value || "",
+            favoriteStrike: multiSelectValues("strike"),
+            defense: multiSelectValues("defense"),
+            tempo: document.getElementById(`${prefix}_tempo`)?.value || "",
+            fightIQ: document.getElementById(`${prefix}_iq`)?.value || "",
             age: parsePositiveNum(`${extraPrefix}_age`),
             height: parsePositiveNum(`${extraPrefix}_height`),
             reach: parsePositiveNum(`${extraPrefix}_reach`),
@@ -955,14 +1222,45 @@ function getPredictionFormInputs() {
 }
 
 function findFighterInApplication(name) {
+    if (!name) return null;
+    const query = normalizeName(name);
+
     if (window.fighters && Array.isArray(window.fighters)) {
-        return window.fighters.find(f => f.name?.toLowerCase() === name.toLowerCase());
+        const exact = window.fighters.find(f => normalizeName(f.name) === query);
+        if (exact) return exact;
+
+        return window.fighters.find(f => {
+            const fighterName = normalizeName(f.name);
+            return fighterName.includes(query) || query.includes(fighterName);
+        });
     }
     return null;
 }
 
-window.restorePredictionInputs = function() {
+function resetPredictionEngine() {
+    const button = document.getElementById('calculatePrediction');
+    const resultsContainer = document.getElementById('predictionResults');
+    const searchInputs = document.querySelectorAll('.search-container input');
+
     document.querySelectorAll('.card').forEach(el => el.style.display = 'block');
-    const container = document.getElementById("predictionResults");
-    if (container) container.innerHTML = "";
+
+    if (resultsContainer) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+    }
+
+    searchInputs.forEach(input => {
+        input.disabled = false;
+    });
+
+    if (button) {
+        button.innerText = 'Calculate Prediction';
+    }
+
+    isShowingResults = false;
+}
+
+window.resetPredictionEngine = resetPredictionEngine;
+window.restorePredictionInputs = function() {
+    resetPredictionEngine();
 };

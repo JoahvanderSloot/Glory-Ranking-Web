@@ -21,7 +21,7 @@
       <li onclick="showPage('leaderboard')">Leaderboard</li>
       <li onclick="showPage('fighter')">Fighters</li>
       <li onclick="showPage('predictions')">Predictions</li>
-      <li onclick="showPage('admin')">Admin</li>
+      <li class="nav-link admin-link" onclick="showPage('admin')">Admin</li>
     </ul>
   </nav>
 
@@ -257,28 +257,20 @@
         <!-- TARGET -->
         <div class="prediction-row">
           <label>Target <span class="info-icon" data-tooltip="The primary strike areas prioritized by the fighter during their offensive combinations.">ⓘ</span></label>
-          <div class="custom-multiselect" id="multiselect_style1_target">
-            <div class="select-box" onclick="toggleDropdown('multiselect_style1_target')">
-              <input type="text" placeholder="Unknown" readonly id="style1_target_text">
-            </div>
-            <div class="checkboxes-wrapper">
-              <label><input type="checkbox" value="Head" onchange="updateMultiselect('style1_target')"> Head</label>
-              <label><input type="checkbox" value="Body" onchange="updateMultiselect('style1_target')"> Body</label>
-              <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style1_target')"> Legs</label>
-              <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style1_target')"> Balanced</label>
-            </div>
-          </div>
-          <div class="custom-multiselect" id="multiselect_style2_target">
-            <div class="select-box" onclick="toggleDropdown('multiselect_style2_target')">
-              <input type="text" placeholder="Unknown" readonly id="style2_target_text">
-            </div>
-            <div class="checkboxes-wrapper">
-              <label><input type="checkbox" value="Head" onchange="updateMultiselect('style2_target')"> Head</label>
-              <label><input type="checkbox" value="Body" onchange="updateMultiselect('style2_target')"> Body</label>
-              <label><input type="checkbox" value="Legs" onchange="updateMultiselect('style2_target')"> Legs</label>
-              <label><input type="checkbox" value="Balanced" onchange="updateMultiselect('style2_target')"> Balanced</label>
-            </div>
-          </div>
+          <select id="style1_target">
+            <option value="">Unknown</option>
+            <option value="Head">Head</option>
+            <option value="Body">Body</option>
+            <option value="Legs">Legs</option>
+            <option value="Balanced">Balanced</option>
+          </select>
+          <select id="style2_target">
+            <option value="">Unknown</option>
+            <option value="Head">Head</option>
+            <option value="Body">Body</option>
+            <option value="Legs">Legs</option>
+            <option value="Balanced">Balanced</option>
+          </select>
         </div>
 
         <!-- PRIMARY WEAPON -->

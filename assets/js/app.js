@@ -63,6 +63,10 @@ function performPageSwitch(pageId) {
         window.clearPredictionSide(1, true);
         window.clearPredictionSide(2, true);
     }
+
+    if (typeof window.resetPredictionEngine === 'function') {
+        window.resetPredictionEngine();
+    }
     
     // Clear other global selection objects
     fightSelection = { f1: null, f2: null };
