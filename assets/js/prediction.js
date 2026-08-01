@@ -79,6 +79,10 @@ function renderSavedPredictionsDrawer() {
     const list = document.getElementById("savedPredictionsList");
     if (!list) return;
 
+    if (drawer) {
+        drawer.classList.toggle("open", isSavedPredictionsDrawerOpen);
+    }
+
     if (!savedPredictions.length) {
         list.innerHTML = '<div class="saved-predictions-empty">No saved predictions yet.</div>';
         updateSavedPredictionsStatus("Your saved predictions will appear here.");
@@ -314,11 +318,18 @@ async function downloadSavedPredictionsPdf() {
             pdf.text(textLines, x + 16, y + 44);
         };
 
-        savedPredictions.forEach((prediction, index) => {
-            if (index > 0) {
+        let currentY = margin;
+        savedPredictions.forEach((prediction) => {
+            const contentHeight = 24 + 14 + (getExportLines(prediction).length + 3) * 10;
+            const cardHeight = Math.max(180, contentHeight + 22);
+
+            if (currentY + cardHeight > pageHeight - margin) {
                 pdf.addPage();
+                currentY = margin;
             }
-            drawCard(prediction, margin, margin, cardWidth);
+
+            drawCard(prediction, margin, currentY, cardWidth);
+            currentY += cardHeight + 16;
         });
 
         const pdfBlob = pdf.output("blob");
@@ -674,6 +685,40 @@ function getPrimaryChoice(value) {
     return value || "";
 }
 
+function normalizeChoiceList(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => String(item || "").trim())
+            .filter(item => item && item.toLowerCase() !== "unknown" && item !== "");
+    }
+
+    const singleValue = String(value || "").trim();
+    return singleValue && singleValue.toLowerCase() !== "unknown" ? [singleValue] : [];
+}
+
+function evaluateChoiceSet(values1, values2, weight, evaluationFn) {
+    const list1 = normalizeChoiceList(values1);
+    const list2 = normalizeChoiceList(values2);
+
+    if (!list1.length || !list2.length) {
+        return { f1: weight * 0.5, f2: weight * 0.5 };
+    }
+
+    const pairWeight = weight / (list1.length * list2.length);
+    let f1Score = 0;
+    let f2Score = 0;
+
+    list1.forEach(value1 => {
+        list2.forEach(value2 => {
+            const result = evaluationFn(value1, value2, pairWeight);
+            f1Score += result.f1;
+            f2Score += result.f2;
+        });
+    });
+
+    return { f1: f1Score, f2: f2Score };
+}
+
 function normalizeStyleValue(value) {
     return String(value || "").trim().toLowerCase();
 }
@@ -873,9 +918,7 @@ function evaluateStyleMatchup(f1Inputs, f2Inputs) {
     let f2Score = 0;
 
     categories.forEach(category => {
-        const value1 = getPrimaryChoice(f1Inputs[category.key]);
-        const value2 = getPrimaryChoice(f2Inputs[category.key]);
-        const result = category.evaluate(value1, value2, category.weight);
+        const result = evaluateChoiceSet(f1Inputs[category.key], f2Inputs[category.key], category.weight, (value1, value2, pairWeight) => category.evaluate(value1, value2, pairWeight));
         f1Score += result.f1;
         f2Score += result.f2;
     });
