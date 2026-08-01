@@ -12,9 +12,6 @@ let editFighterId = null;
 // ========================
 // PAGE NAVIGATION
 // ========================
-// ========================
-// PAGE NAVIGATION
-// ========================
 function showPage(pageId) {
     // 1. Check if we are currently looking at a result (The "Prediction" view)
     const resultsContainer = document.getElementById("predictionResults");
@@ -22,15 +19,17 @@ function showPage(pageId) {
 
     // 2. If a result is active, force the restoration of inputs first
     if (isShowingResult) {
-        // This triggers the button logic we created earlier to show inputs
         window.restorePredictionInputs();
         
         // Wait a split second so the user actually sees the input fields reappear
-        // before the page transition happens
-        setTimeout(() => performPageSwitch(pageId), 100);
+        setTimeout(() => {
+            performPageSwitch(pageId);
+            syncAdminPanelVisibility(); // Sync here as well for delayed switches
+        }, 100);
     } else {
         // No result active, proceed normally
         performPageSwitch(pageId);
+        syncAdminPanelVisibility(); // Sync immediately for normal switches
     }
 }
 
@@ -89,6 +88,18 @@ window.showPage = showPage;
 // ADMIN LOGIN
 // ========================
 const whitelist = ["Joah", "VDS"];
+function syncAdminPanelVisibility() {
+    const loginCard = document.getElementById("loginCard");
+    const adminContent = document.getElementById("adminContent");
+    if (!loginCard || !adminContent) return;
+
+    const user = sessionStorage.getItem("adminUser");
+    const isLoggedIn = Boolean(user && whitelist.includes(user));
+
+    loginCard.style.display = isLoggedIn ? "none" : "block";
+    adminContent.style.display = isLoggedIn ? "block" : "none";
+}
+
 function Login() {
     const username = prompt("Enter username:");
     if (!username) return;
@@ -96,10 +107,12 @@ function Login() {
     else alert("Access denied.");
 }
 function grantAccess(username) {
-    document.getElementById("loginCard").style.display = "none";
-    document.getElementById("adminContent").style.display = "block";
     sessionStorage.setItem("adminUser", username);
+    syncAdminPanelVisibility();
 }
+
+window.syncAdminPanelVisibility = syncAdminPanelVisibility;
+window.grantAccess = grantAccess;
 
 // ========================
 // LOAD DATA
@@ -145,8 +158,7 @@ async function loadData() {
     renderWeightClassList();
 }
 window.onload = () => {
-    const user = sessionStorage.getItem("adminUser");
-    if (user && whitelist.includes(user)) grantAccess(user);
+    syncAdminPanelVisibility();
 
     // Load KO bonus toggle state from localStorage
     const savedKOBonus = localStorage.getItem("showKOBonus");
@@ -781,6 +793,15 @@ async function saveData() {
 
 window.showPage = showPage;
 window.searchFighter = searchFighter;
+window.addEventListener("pageshow", () => {
+    syncAdminPanelVisibility();
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+        syncAdminPanelVisibility();
+    }
+});
 window.openFighter = openFighter;
 window.addFighterAdmin = addFighterAdmin;
 window.addFightAdmin = addFightAdmin;

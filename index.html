@@ -112,9 +112,11 @@
 <div id="predictions" class="page">
   <div class="container">
     <div class="prediction-page-header">
-      <button type="button" id="savedPredictionsToggle" class="prediction-file-btn" onclick="toggleSavedPredictionsDrawer()">
-        File
-      </button>
+      <div class="prediction-header-actions">
+        <button type="button" id="savedPredictionsToggle" class="prediction-file-btn" onclick="toggleSavedPredictionsDrawer()" aria-label="Open saved bouts" title="Saved bouts">
+          🔖
+        </button>
+      </div>
       <div class="prediction-title-group">
         <h2>Fight Prediction</h2>
         <button type="button" class="prediction-help-trigger" onclick="openPredictionInfoModal()" aria-label="Open prediction help">

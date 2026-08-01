@@ -10,6 +10,7 @@ let predictionSelection = {
 let currentPredictionSnapshot = null;
 let savedPredictions = [];
 let isSavedPredictionsDrawerOpen = false;
+let predictionSaveDirty = false;
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -62,9 +63,8 @@ function toggleSavedPredictionsDrawer(forceOpen) {
     if (!drawer) return;
 
     const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !drawer.classList.contains("open");
-    drawer.classList.toggle("open", shouldOpen);
-    drawer.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
     isSavedPredictionsDrawerOpen = shouldOpen;
+    syncSavedPredictionsDrawerState();
 }
 
 function updateSavedPredictionsStatus(message) {
@@ -74,18 +74,28 @@ function updateSavedPredictionsStatus(message) {
     }
 }
 
+function syncSavedPredictionsDrawerState() {
+    const drawer = document.getElementById("savedPredictionsDrawer");
+    if (!drawer) return;
+
+    drawer.classList.toggle("open", isSavedPredictionsDrawerOpen);
+    drawer.setAttribute("aria-hidden", isSavedPredictionsDrawerOpen ? "false" : "true");
+}
+
 function renderSavedPredictionsDrawer() {
     const drawer = document.getElementById("savedPredictionsDrawer");
     const list = document.getElementById("savedPredictionsList");
     if (!list) return;
 
-    if (drawer) {
-        drawer.classList.toggle("open", isSavedPredictionsDrawerOpen);
-    }
+    syncSavedPredictionsDrawerState();
 
     if (!savedPredictions.length) {
         list.innerHTML = '<div class="saved-predictions-empty">No saved predictions yet.</div>';
         updateSavedPredictionsStatus("Your saved predictions will appear here.");
+        if (drawer && isSavedPredictionsDrawerOpen) {
+            drawer.classList.add("open");
+            drawer.setAttribute("aria-hidden", "false");
+        }
         return;
     }
 
@@ -105,8 +115,8 @@ function renderSavedPredictionsDrawer() {
                 <div class="saved-prediction-meta">${escapeHtml(prediction.result?.bannerWinPercent || "0")}% win chance • ${escapeHtml(prediction.result?.activePercent || "0")}% active data</div>
                 <div class="saved-prediction-breakdown">${breakdownDetails}</div>
                 <div class="saved-prediction-actions">
-                    <button type="button" onclick="loadSavedPrediction(${index})">Load</button>
-                    <button type="button" onclick="deleteSavedPrediction(${index})">Delete</button>
+                    <button type="button" onclick="event.stopPropagation(); loadSavedPrediction(${index})">Load</button>
+                    <button type="button" onclick="event.stopPropagation(); deleteSavedPrediction(${index})">Delete</button>
                 </div>
             </div>
         `;
@@ -117,6 +127,69 @@ function renderSavedPredictionsDrawer() {
     if (drawer) {
         drawer.classList.toggle("open", isSavedPredictionsDrawerOpen);
     }
+}
+
+function buildPredictionSnapshotKey(snapshot) {
+    return JSON.stringify({
+        fighter1Name: snapshot?.fighter1Name || "",
+        fighter2Name: snapshot?.fighter2Name || "",
+        fighter1Id: snapshot?.fighter1Id || null,
+        fighter2Id: snapshot?.fighter2Id || null,
+        formInputs: snapshot?.formInputs || {},
+        result: {
+            winnerName: snapshot?.result?.winnerName || "",
+            bannerWinPercent: snapshot?.result?.bannerWinPercent ?? null,
+            activePercent: snapshot?.result?.activePercent ?? null,
+            voidedPercent: snapshot?.result?.voidedPercent ?? null
+        }
+    });
+}
+
+function findSavedPredictionIndex(snapshot) {
+    const targetKey = buildPredictionSnapshotKey(snapshot);
+    return savedPredictions.findIndex(item => buildPredictionSnapshotKey(item) === targetKey);
+}
+
+function isPredictionSnapshotSaved(snapshot) {
+    return Boolean(snapshot && findSavedPredictionIndex(snapshot) !== -1);
+}
+
+function updatePredictionSaveButton() {
+    const button = document.getElementById("predictionSaveToggle");
+    if (!button) return;
+
+    const isSaved = Boolean(currentPredictionSnapshot && !predictionSaveDirty && isPredictionSnapshotSaved(currentPredictionSnapshot));
+    button.classList.toggle("is-saved", isSaved);
+    button.setAttribute("aria-pressed", isSaved ? "true" : "false");
+    const label = button.querySelector(".prediction-save-label");
+    if (label) {
+        label.textContent = isSaved ? "Saved" : "Save";
+    }
+}
+
+function markPredictionChanged() {
+    if (!currentPredictionSnapshot) return;
+    predictionSaveDirty = true;
+    updatePredictionSaveButton();
+}
+
+function attachPredictionFieldListeners() {
+    const container = document.getElementById("predictions");
+    if (!container || container.dataset.predictionListenersBound === "true") return;
+
+    const handleFieldChange = (event) => {
+        const target = event.target;
+        if (!target) return;
+        if (target.closest("#savedPredictionsDrawer") || target.closest("#predictionResults") || target.closest(".prediction-page-header")) return;
+        if (target.tagName === "BUTTON") return;
+        if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") {
+            markPredictionChanged();
+        }
+    };
+
+    container.addEventListener("input", handleFieldChange);
+    container.addEventListener("change", handleFieldChange);
+    container.dataset.predictionListenersBound = "true";
 }
 
 function buildCurrentPredictionSnapshot() {
@@ -145,6 +218,15 @@ function buildCurrentPredictionSnapshot() {
     };
 }
 
+function togglePredictionSaveState() {
+    if (!currentPredictionSnapshot) {
+        alert("Generate a prediction first before saving it.");
+        return;
+    }
+
+    saveCurrentPrediction();
+}
+
 function saveCurrentPrediction() {
     if (!currentPredictionSnapshot) {
         alert("Generate a prediction first before saving it.");
@@ -152,10 +234,23 @@ function saveCurrentPrediction() {
     }
 
     const snapshot = buildCurrentPredictionSnapshot();
+    const existingIndex = findSavedPredictionIndex(snapshot);
+
+    if (existingIndex !== -1) {
+        savedPredictions.splice(existingIndex, 1);
+        predictionSaveDirty = false;
+        persistSavedPredictions();
+        updatePredictionSaveButton();
+        updateSavedPredictionsStatus("Removed from library");
+        return;
+    }
+
     savedPredictions.unshift(snapshot);
+    predictionSaveDirty = false;
     persistSavedPredictions();
     toggleSavedPredictionsDrawer(true);
     updateSavedPredictionsStatus("Saved to library and opened");
+    updatePredictionSaveButton();
 }
 
 function applyPredictionSnapshot(snapshot) {
@@ -242,6 +337,11 @@ function showPredictionResultsFromSnapshot(snapshot) {
     isShowingResults = true;
 
     currentPredictionSnapshot = snapshot;
+    predictionSaveDirty = false;
+    updatePredictionSaveButton();
+    predictionSaveDirty = false;
+    updatePredictionSaveButton();
+    updatePredictionSaveButton();
     renderMatchupResultsView(
         snapshot.fighter1Name || "Fighter 1",
         snapshot.fighter2Name || "Fighter 2",
@@ -267,8 +367,18 @@ function loadSavedPrediction(index) {
 }
 
 function deleteSavedPrediction(index) {
+    if (index < 0 || index >= savedPredictions.length) return;
+
     savedPredictions.splice(index, 1);
+    isSavedPredictionsDrawerOpen = true;
     persistSavedPredictions();
+    requestAnimationFrame(() => {
+        const drawer = document.getElementById("savedPredictionsDrawer");
+        if (drawer) {
+            drawer.classList.add("open");
+            drawer.setAttribute("aria-hidden", "false");
+        }
+    });
 }
 
 async function downloadSavedPredictionsPdf() {
@@ -394,12 +504,13 @@ function initSlidersOnLoad() {
 document.addEventListener("DOMContentLoaded", () => {
     initSlidersOnLoad();
     loadSavedPredictions();
+    attachPredictionFieldListeners();
 });
 
 window.addEventListener("beforeunload", (event) => {
     if (savedPredictions.length) {
         event.preventDefault();
-        event.returnValue = "";
+        event.returnValue = "You have unsaved session predictions in your library. Leave anyway?";
     }
 });
 
@@ -407,7 +518,10 @@ window.addEventListener("click", (event) => {
     if (!isSavedPredictionsDrawerOpen) return;
     const drawer = document.getElementById("savedPredictionsDrawer");
     const toggle = document.getElementById("savedPredictionsToggle");
-    if (drawer && !event.target.closest(".saved-predictions-drawer") && !event.target.closest("#savedPredictionsToggle")) {
+    const clickedInsideDrawer = event.target.closest(".saved-predictions-drawer");
+    const clickedToggle = event.target.closest("#savedPredictionsToggle");
+
+    if (drawer && !clickedInsideDrawer && !clickedToggle) {
         toggleSavedPredictionsDrawer(false);
     }
 });
@@ -477,7 +591,26 @@ function searchPrediction2() {
 // SELECTION MANAGEMENT
 // ==========================================
 
+function isSamePredictionSelection(selectionA, selectionB) {
+    if (!selectionA || !selectionB) return false;
+
+    if (selectionA.id != null && selectionB.id != null && String(selectionA.id) === String(selectionB.id)) {
+        return true;
+    }
+
+    const nameA = normalizeName(selectionA.name);
+    const nameB = normalizeName(selectionB.name);
+    return Boolean(nameA && nameB && nameA === nameB);
+}
+
 function selectPredictionFighter(side, id, name) {
+    const otherSelection = side === 1 ? predictionSelection.fighter2 : predictionSelection.fighter1;
+    const incomingSelection = { id, name };
+    if (isSamePredictionSelection(incomingSelection, otherSelection)) {
+        alert("You cannot select the same fighter twice.");
+        return;
+    }
+
     clearPredictionSide(side, true);
 
     const match = (window.fighters || []).find(f => f.id === id);
@@ -576,18 +709,33 @@ window.toggleDropdown = function(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const wrapper = container.querySelector('.checkboxes-wrapper');
-    const isOpen = wrapper.style.display === 'block';
-    
-    document.querySelectorAll('.checkboxes-wrapper').forEach(el => el.style.display = 'none');
-    
-    if (!isOpen && wrapper) {
-        wrapper.style.display = 'block';
+    const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    const shouldOpen = !container.classList.contains('is-open');
+
+    document.querySelectorAll('.custom-multiselect.is-open').forEach(el => {
+        el.classList.remove('is-open');
+        const inner = el.querySelector('.checkboxes-wrapper');
+        if (inner) inner.style.display = 'none';
+    });
+
+    if (!shouldOpen || !wrapper) return;
+
+    wrapper.style.display = 'block';
+    container.classList.add('is-open');
+
+    if (isMobile) {
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
     }
 };
 
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.custom-multiselect')) {
-        document.querySelectorAll('.checkboxes-wrapper').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.custom-multiselect.is-open').forEach(el => {
+            el.classList.remove('is-open');
+            const inner = el.querySelector('.checkboxes-wrapper');
+            if (inner) inner.style.display = 'none';
+        });
     }
 });
 
@@ -715,6 +863,16 @@ function evaluateChoiceSet(values1, values2, weight, evaluationFn) {
             f2Score += result.f2;
         });
     });
+
+    const countDifference = Math.abs(list1.length - list2.length);
+    if (countDifference > 0) {
+        const countBonus = countDifference * 0.01 * weight;
+        if (list1.length > list2.length) {
+            f1Score += countBonus;
+        } else if (list2.length > list1.length) {
+            f2Score += countBonus;
+        }
+    }
 
     return { f1: f1Score, f2: f2Score };
 }
@@ -1163,36 +1321,62 @@ export function calculatePrediction() {
     let aggregateF1Gained = categoryBreakdowns.reduce((sum, item) => sum + item.f1Gain, 0);
     let aggregateF2Gained = categoryBreakdowns.reduce((sum, item) => sum + item.f2Gain, 0);
     const activeTotalGained = aggregateF1Gained + aggregateF2Gained;
+    const isIdenticalMatchup = isSamePredictionSelection(
+        { id: predictionSelection.fighter1?.id ?? null, name: name1 },
+        { id: predictionSelection.fighter2?.id ?? null, name: name2 }
+    ) || (normalizeName(name1) && normalizeName(name1) === normalizeName(name2));
+    const isDrawOutcome = isIdenticalMatchup || Math.abs(aggregateF1Gained - aggregateF2Gained) < 0.0001;
+
+    let categoryWinsF1 = 0;
+    let categoryWinsF2 = 0;
+    categoryBreakdowns.forEach(item => {
+        if (item.f1Gain > item.f2Gain) {
+            categoryWinsF1 += 1;
+        } else if (item.f2Gain > item.f1Gain) {
+            categoryWinsF2 += 1;
+        }
+    });
+    const categoryLeadBoost = categoryBreakdowns.length > 0
+        ? Math.max(-0.08, Math.min(0.08, ((categoryWinsF1 - categoryWinsF2) / categoryBreakdowns.length) * 0.08))
+        : 0;
 
     // Split including void for visual bar (adds up to 100%)
     let finalF1Percentage = 0;
     let finalF2Percentage = 0;
-
-    if (activeTotalGained > 0 && activePercentage > 0) {
-        const f1ShareOfActive = aggregateF1Gained / activeTotalGained;
-        finalF1Percentage = Math.round(f1ShareOfActive * activePercentage);
-        finalF2Percentage = activePercentage - finalF1Percentage; 
-    } else if (activePercentage > 0) {
-        finalF1Percentage = Math.round(activePercentage / 2);
-        finalF2Percentage = activePercentage - finalF1Percentage;
-    }
-
-    // Normalized win probability EXCLUDING VOID (for the Banner display)
+    let visualVoidPercentage = voidedPercentage;
     let activeF1WinProb = 50;
     let activeF2WinProb = 50;
 
-    if (activeTotalGained > 0) {
-        activeF1WinProb = Math.round((aggregateF1Gained / activeTotalGained) * 100);
-        activeF2WinProb = 100 - activeF1WinProb;
+    if (activePercentage > 0) {
+        if (isDrawOutcome) {
+            const split = activePercentage / 2;
+            finalF1Percentage = split;
+            finalF2Percentage = activePercentage - split;
+            visualVoidPercentage = 100 - finalF1Percentage - finalF2Percentage;
+        } else if (activeTotalGained > 0) {
+            const rawActiveShareF1 = aggregateF1Gained / activeTotalGained;
+            const adjustedActiveShareF1 = Math.min(0.95, Math.max(0.05, rawActiveShareF1 + categoryLeadBoost));
+            const adjustedActiveShareF2 = 1 - adjustedActiveShareF1;
+
+            finalF1Percentage = Math.round(adjustedActiveShareF1 * activePercentage);
+            finalF2Percentage = activePercentage - finalF1Percentage;
+            activeF1WinProb = Math.round(adjustedActiveShareF1 * 100);
+            activeF2WinProb = Math.round(adjustedActiveShareF2 * 100);
+        } else {
+            const split = activePercentage / 2;
+            finalF1Percentage = split;
+            finalF2Percentage = activePercentage - split;
+            visualVoidPercentage = 100 - finalF1Percentage - finalF2Percentage;
+        }
     }
 
     let winnerName = "Draw / Even";
     let bannerWinPercent = activeF1WinProb;
 
-    if (aggregateF1Gained > aggregateF2Gained) {
+    if (!isDrawOutcome && aggregateF1Gained > aggregateF2Gained) {
         winnerName = name1;
         bannerWinPercent = activeF1WinProb;
-    } else if (aggregateF2Gained > aggregateF1Gained) {
+    } else if (!isDrawOutcome && aggregateF2Gained > aggregateF1Gained) {
         winnerName = name2;
         bannerWinPercent = activeF2WinProb;
     }
@@ -1234,6 +1418,8 @@ export function calculatePrediction() {
         savedAt: new Date().toLocaleString()
     };
 
+    predictionSaveDirty = false;
+    updatePredictionSaveButton();
     renderMatchupResultsView(name1, name2, finalF1Percentage, finalF2Percentage, activePercentage, voidedPercentage, winnerName, bannerWinPercent, confidenceRating, confidenceColor, categoryBreakdowns);
 }
 
@@ -1267,7 +1453,10 @@ function renderMatchupResultsView(name1, name2, f1OverallPercent, f2OverallPerce
         <div class="card" style="margin-top:20px; background: #121212; border: 1px solid #d4af37; border-radius: 8px; padding: 25px; color: #fff;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
                 <div style="font-size:13px; color:#aaa;">Prediction snapshot</div>
-                <button type="button" onclick="event.stopPropagation(); saveCurrentPrediction()" style="padding:8px 12px; border-radius:8px; border:1px solid gold; background:#1a1a1a; color:white; cursor:pointer;">Save</button>
+                <button type="button" id="predictionSaveToggle" class="prediction-save-toggle" onclick="event.stopPropagation(); saveCurrentPrediction()" aria-pressed="false">
+                    <span class="prediction-save-icon" aria-hidden="true">🔖</span>
+                    <span class="prediction-save-label">Save</span>
+                </button>
             </div>
             
             <!-- BANNER HEADER -->
@@ -1284,13 +1473,14 @@ function renderMatchupResultsView(name1, name2, f1OverallPercent, f2OverallPerce
             <!-- VISUAL TOTAL SPLIT BAR (INCLUDES VOID) -->
             <div style="display:flex; height:40px; border-radius:6px; overflow:hidden; background:#222; margin-bottom:25px; border: 1px solid #333;">
                 ${f1OverallPercent > 0 ? `<div style="width: ${f1OverallPercent}%; background: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 13px;">${name1}: ${f1OverallPercent}%</div>` : ''}
-                ${voidedPercent > 0 ? `<div style="width: ${voidedPercent}%; background: #4b5563; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">VOID ${voidedPercent}%</div>` : ''}
+                ${voidedPercent > 0 ? `<div style="width: ${Math.max(0, 100 - f1OverallPercent - f2OverallPercent)}%; background: #4b5563; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">VOID ${voidedPercent}%</div>` : ''}
                 ${f2OverallPercent > 0 ? `<div style="width: ${f2OverallPercent}%; background: #dc2626; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 13px;">${name2}: ${f2OverallPercent}%</div>` : ''}
             </div>
 
             <div style="margin-top: 5px;">${rowsHtml}</div>
         </div>
     `;
+    updatePredictionSaveButton();
 }
 
 // ==========================================

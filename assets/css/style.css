@@ -624,24 +624,53 @@ input:checked + .slider:before {
 
 .prediction-page-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 18px;
+  margin-top: 8px;
 }
 
-.prediction-file-btn {
-  margin-right: auto;
+.prediction-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+#savedPredictionsToggle {
+  position: static;
+  top: auto;
+  left: auto;
+  z-index: auto;
+  border: 1px solid gold;
+  background: #111;
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+#savedPredictionsToggle:hover {
+  background: #222;
+  transform: translateY(-1px);
 }
 
 .prediction-title-group {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-left: 0;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .prediction-help-trigger,
 .prediction-file-btn,
+.prediction-save-toggle,
 .prediction-modal-close,
 .saved-prediction-actions button,
 .saved-predictions-footer button {
@@ -660,6 +689,61 @@ input:checked + .slider:before {
 .saved-prediction-actions button:hover,
 .saved-predictions-footer button:hover {
   background: #2b2b2b;
+}
+
+.prediction-help-trigger,
+.prediction-file-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+}
+
+.prediction-file-btn {
+  font-size: 20px;
+}
+
+.prediction-save-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 100px;
+  border: 1px solid gold;
+  background: transparent;
+  color: #f5d36b;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.prediction-save-toggle.is-saved {
+  background: gold;
+  color: #111;
+  box-shadow: 0 6px 18px rgba(255, 215, 0, 0.28);
+}
+
+.prediction-save-toggle:hover {
+  background: rgba(255, 215, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.prediction-save-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.prediction-save-label {
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }
 
 .prediction-modal-overlay {
@@ -855,6 +939,10 @@ input:checked + .slider:before {
   padding: 5px;
   box-shadow: 0 5px 10px rgba(0,0,0,0.3);
 }
+
+.custom-multiselect.is-open .checkboxes-wrapper {
+  display: block;
+}
 .custom-multiselect .checkboxes-wrapper label {
   display: flex;
   align-items: center;
@@ -1037,11 +1125,24 @@ input:checked + .slider:before {
     .prediction-page-header {
         flex-direction: column;
         align-items: stretch;
+        justify-content: flex-start;
         gap: 10px;
+        margin-top: 18px;
+    }
+
+    .prediction-header-actions {
+        justify-content: flex-start;
+        width: 100%;
     }
 
     .prediction-title-group {
         justify-content: space-between;
+        width: 100%;
+        margin-left: 0;
+    }
+
+    #savedPredictionsToggle {
+        padding: 9px 12px;
     }
 
     .prediction-modal {
@@ -1066,6 +1167,17 @@ input:checked + .slider:before {
         align-items: stretch;
         padding: 14px;
         gap: 12px;
+        margin-top: 16px;
+    }
+
+    .prediction-page-header {
+        margin-top: 24px;
+    }
+
+    .prediction-help-trigger {
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
     }
 
     .sticky-fighter-input {
@@ -1104,19 +1216,39 @@ input:checked + .slider:before {
         width: 100%;
         min-width: 0;
         font-size: 15px;
-        padding: 10px 12px;
+        padding: 10px 2px;
     }
 
     .prediction-row .custom-multiselect {
         position: relative;
+        width: 80px;
     }
 
     .prediction-row .custom-multiselect .select-box input {
-        padding: 10px 12px;
+        padding: 10px 2px;
         font-size: 15px;
     }
 
     .action-buttons {
+        flex-direction: column;
+    }
+
+    .custom-multiselect .checkboxes-wrapper {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(92vw, 480px);
+        height: auto;
+        max-height: 85vh;
+        overflow-y: auto;
+        border-radius: 16px;
+        padding: 12px;
+        z-index: 2100;
+    }
+
+    .custom-multiselect.is-open .checkboxes-wrapper {
+        display: flex;
         flex-direction: column;
     }
 }
@@ -1249,7 +1381,7 @@ input:checked + .slider:before {
     
     /* STOLEN FROM YOUR CUSTOM DROPDOWNS: */
     /* This automatically copies your background, border, colors, and shadows from your multi-select wrapper */
-    background-color: var(--card-bg, #ffffff) !important; /* Fallback to white if a variable isn't used */
+    background-color: var(--card-bg, #ffffff); /* Fallback to white if a variable isn't used */
 }
 
 /* Let's explicitly force it to copy your .checkboxes-wrapper properties if you have them */
@@ -1266,58 +1398,58 @@ input:checked + .slider:before {
 .search-container {
     position: relative;
     width: 100%;
-    margin-bottom: 0 !important;
+    margin-bottom: 0;
 }
 
 /* Forces the search results dropdown to be pitch black/dark grey with a gold border */
 .search-results,
 #predictionResults1,
 #predictionResults2 {
-    position: absolute !important;
-    top: 100% !important;
-    left: 0 !important;
-    width: 100% !important;
-    z-index: 9999 !important; /* Layers it completely on top of tables and sliders */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    z-index: 9999; /* Layers it completely on top of tables and sliders */
     
     /* Hard overrides to destroy any browser default styles */
-    background: #111111 !important;        /* Pure solid dark grey matches your theme */
-    background-color: #111111 !important;  /* Safety fallback */
-    border: 1px solid gold !important;     /* Clean gold outline */
-    border-radius: 8px !important;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9) !important;
+    background: #111111;        /* Pure solid dark grey matches your theme */
+    background-color: #111111;  /* Safety fallback */
+    border: 1px solid gold;     /* Clean gold outline */
+    border-radius: 8px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9);
     
-    max-height: 200px !important;
-    overflow-y: auto !important;
-    margin-top: 4px !important;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 4px;
 }
 
 /* Styles the individual rows to have light, readable text */
 .search-results .fighter-row,
 .fighter-row {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    padding: 10px 14px !important;
-    cursor: pointer !important;
-    text-align: left !important;
-    font-size: 14px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
     
-    background: transparent !important;
-    background-color: transparent !important;
-    color: #eeeeee !important;             /* Crisp off-white text */
-    border-bottom: 1px solid #222222 !important; 
-    transition: 0.2s ease !important;
+    background: transparent;
+    background-color: transparent;
+    color: #eeeeee;             /* Crisp off-white text */
+    border-bottom: 1px solid #222222; 
+    transition: 0.2s ease;
 }
 
 /* Remove bottom border from the last row inside the dropdown */
 .search-results .fighter-row:last-child {
-    border-bottom: none !important;
+    border-bottom: none;
 }
 
 .search-results .fighter-row:hover {
-    background: rgba(255, 215, 0, 0.15) !important;
-    background-color: rgba(255, 215, 0, 0.15) !important;
-    color: #ffffff !important;
+    background: rgba(255, 215, 0, 0.15);
+    background-color: rgba(255, 215, 0, 0.15);
+    color: #ffffff;
 }
 
 #styleName1, 
@@ -1335,7 +1467,7 @@ label[for="predictionSearch2"] {
 }
 
 #adminContent .form-group {
-    position: relative !important;
+    position: relative;
 }
 
 .search-results:empty,
@@ -1343,18 +1475,18 @@ label[for="predictionSearch2"] {
 #fightResults2:empty,
 #predictionResults1:empty,
 #predictionResults2:empty {
-    display: none !important;
-    border: none !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    display: none;
+    border: none;
+    height: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .search-results .fighter-row {
-    border-bottom: 1px solid #222222 !important;
+    border-bottom: 1px solid #222222;
 }
 
 #adminContent .form-group .fighter-row:only-child:empty {
-    display: none !important;
-    border: none !important;
+    display: none;
+    border: none;
 }
