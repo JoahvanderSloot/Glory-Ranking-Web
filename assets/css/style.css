@@ -222,15 +222,14 @@ button:hover::after {
 }
 
 @media (max-width: 600px) {
-    nav {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+   nav {
+        padding: 12px 15px;
+        gap: 8px;
     }
-
     nav ul {
-        width: 100%;
-        justify-content: space-between;
+        gap: 12px;
+        justify-content: flex-start;
+        font-size: 14px;
     }
 
     .nav-link.admin-link {
@@ -1233,17 +1232,14 @@ input:checked + .slider:before {
         flex-direction: column;
     }
 
-    .custom-multiselect .checkboxes-wrapper {
+   .custom-multiselect .checkboxes-wrapper {
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: min(92vw, 480px);
-        height: auto;
-        max-height: 85vh;
-        overflow-y: auto;
-        border-radius: 16px;
-        padding: 12px;
+        width: 90vw;
+        max-width: 340px;
+        max-height: 70vh;
         z-index: 2100;
     }
 
@@ -1252,6 +1248,38 @@ input:checked + .slider:before {
         flex-direction: column;
     }
 }
+
+@media (max-width: 900px) {
+    .prediction-row,
+    #predictions .prediction-table .prediction-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    /* Wrap the two dropdowns side-by-side and push them closer to the label */
+    .prediction-row select,
+    .prediction-row input,
+    .prediction-row .custom-multiselect {
+        width: 100%;
+        margin-top: 2px;
+    }
+
+    .prediction-row > label,
+    .prediction-row > .prediction-side-control {
+        grid-column: span 2;
+    }
+    
+    .prediction-row .prediction-side-control:nth-of-type(2) {
+        grid-column: span 1;
+    }
+    .prediction-row .prediction-side-control:nth-of-type(3) {
+        grid-column: span 1;
+    }
+}
+
+
 
 /* ==========================================================
    TOOLTIP BUBBLE SYSTEM (Pure CSS Hover with Delay)
@@ -1345,21 +1373,20 @@ input:checked + .slider:before {
 
 @media (max-width: 768px) {
     .info-icon::after {
-        left: 350%;
-        top: calc(100% + 8px);
+        position: fixed;
+        left: 50%;
+        top: 50%;
         bottom: auto;
-        transform: translateX(-50%);
-        width: min(88vw, 260px);
+        transform: translate(-50%, -50%) scale(1);
+        width: min(88vw, 300px);
+        text-align: center;
+        z-index: 99999;
     }
 
     .info-icon::before {
-        left: 50%;
-        top: calc(100% + 2px);
-        bottom: auto;
-        transform: translateX(-50%);
+        display: none; /* Hide the directional arrow on mobile when centered as a modal popup */
     }
 }
-
 /* Ensure the container wrapping both the search input and results has this */
 /* 1. Keep the container tight and clean */
 /* Tighten container, no margins */
@@ -1384,12 +1411,6 @@ input:checked + .slider:before {
     background-color: var(--card-bg, #ffffff); /* Fallback to white if a variable isn't used */
 }
 
-/* Let's explicitly force it to copy your .checkboxes-wrapper properties if you have them */
-/* ==========================================================
-   FIXED SEARCH DROPDOWN SYSTEM (Matches Black/Gold Theme)
-   ========================================================== */
-
-/* 1. Keep the search container tight and relative */
 /* ==========================================================
    FORCE-FIXED SEARCH DROPDOWN SYSTEM (No More White Backgrounds)
    ========================================================== */
