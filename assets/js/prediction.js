@@ -1578,8 +1578,8 @@ function parseHistoryStats(historyArray, fighterObj) {
     // KO% calculated from Wins
     const koRatio = wins > 0 ? Math.min(1.0, kos / wins) : (total > 0 ? Math.min(1.0, kos / total) : 0.4);
 
-    // Chin Resilience calculated from Losses
-    const chinRatio = losses > 0 ? Math.max(0, 1 - (koLosses / losses)) : 0.85;
+    // Chin Resilience: 100% if never KO'd, otherwise calculated from Losses
+    const chinRatio = koLosses === 0 ? 1.0 : (losses > 0 ? Math.max(0, 1 - (koLosses / losses)) : 1.0);
 
     return {
         wins,
