@@ -1369,16 +1369,26 @@ export function calculatePrediction() {
             visualVoidPercentage = 100 - finalF1Percentage - finalF2Percentage;
         }
     }
+let winnerName = "Draw / Even";
+    let bannerWinPercent = 50;
 
-    let winnerName = "Draw / Even";
-    let bannerWinPercent = activeF1WinProb;
-
-    if (!isDrawOutcome && aggregateF1Gained > aggregateF2Gained) {
+    // Determine winner based on the final calculated probabilities 
+    // so the name and win percentage never contradict each other.
+    if (!isDrawOutcome && activeF1WinProb > activeF2WinProb) {
         winnerName = name1;
         bannerWinPercent = activeF1WinProb;
-    } else if (!isDrawOutcome && aggregateF2Gained > aggregateF1Gained) {
+    } else if (!isDrawOutcome && activeF2WinProb > activeF1WinProb) {
         winnerName = name2;
         bannerWinPercent = activeF2WinProb;
+    } else if (!isDrawOutcome) {
+        // Fallback: If probabilities tie at 50-50 due to rounding, use raw points
+        if (aggregateF1Gained > aggregateF2Gained) {
+            winnerName = name1;
+            bannerWinPercent = activeF1WinProb;
+        } else if (aggregateF2Gained > aggregateF1Gained) {
+            winnerName = name2;
+            bannerWinPercent = activeF2WinProb;
+        }
     }
 
     let confidenceRating = "Low Data Reliability";
