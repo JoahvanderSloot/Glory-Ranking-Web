@@ -95,7 +95,7 @@ import { signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstati
 // ADMIN LOGIN (GitHub OAuth)
 // ========================
 // Whitelisted GitHub handles (stored in lowercase for exact matching)
-const whitelist = ["joah", "vds"]; 
+const whitelist = ["JoahvanderSloot"]; 
 
 let currentUser = null;
 
