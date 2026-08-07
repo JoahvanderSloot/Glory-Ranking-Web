@@ -1342,3 +1342,21 @@ function updateWinnerDropdown() {
 
 // Expose functions globally for inline HTML event listeners
 window.searchFightFighter = searchFightFighter;
+
+function calculateEloChange(elo1, elo2, result, method, isKOToggle = false) {
+    const K = 32; // Standard Elo K-factor
+    const expectedScore = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+
+    let actualScore = 0.5; // Default for draw
+    if (result === "win") actualScore = 1;
+    if (result === "loss") actualScore = 0;
+
+    let change = K * (actualScore - expectedScore);
+
+    // Apply KO multiplier if calculating for the KO bonus toggle
+    if (isKOToggle && method === "KO") {
+        change *= 1.5; // 50% bonus Elo change for KO finishes
+    }
+
+    return Math.round(change);
+}
