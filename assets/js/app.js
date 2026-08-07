@@ -8,6 +8,8 @@ let eloChart = null;
 let showKOBonus = false;
 let fightSelection = { f1: null, f2: null };
 let editFighterId = null;
+let selectedFighter1 = null;
+let selectedFighter2 = null;
 
 // ========================
 // PAGE NAVIGATION
@@ -1298,3 +1300,60 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
 window.getFighterBeltBadgesHtml = getFighterBeltBadgesHtml;
 window.getFightTitleIconHtml = getFightTitleIconHtml;
 window.getTitleHistorySummary = getTitleHistorySummary;
+
+// ========================
+// ADMIN FIGHT SELECTION
+// ========================
+function searchFightFighter(num) {
+    const query = document.getElementById(`fightSearch${num}`)?.value.toLowerCase() || "";
+    const resultsBox = document.getElementById(`fightResults${num}`);
+    if (!resultsBox) return;
+
+    if (!query) {
+        resultsBox.innerHTML = "";
+        return;
+    }
+
+    const matches = fighters.filter(f => f.name.toLowerCase().includes(query));
+
+    resultsBox.innerHTML = matches.map(f => `
+        <div class="search-result-item" onclick="selectFightFighter(${num}, ${f.id})" style="padding: 6px; cursor: pointer;">
+            ${f.name} (${f.weightClass})
+        </div>
+    `).join("");
+}
+
+function selectFightFighter(num, id) {
+    const fighter = getFighterById(id);
+    if (!fighter) return;
+
+    if (num === 1) {
+        selectedFighter1 = fighter;
+        document.getElementById("fightSearch1").value = fighter.name;
+        document.getElementById("fightResults1").innerHTML = "";
+    } else {
+        selectedFighter2 = fighter;
+        document.getElementById("fightSearch2").value = fighter.name;
+        document.getElementById("fightResults2").innerHTML = "";
+    }
+
+    updateWinnerDropdown();
+}
+
+function updateWinnerDropdown() {
+    const winnerSelect = document.getElementById("fightWinner");
+    if (!winnerSelect) return;
+
+    const name1 = selectedFighter1 ? selectedFighter1.name : "Fighter 1";
+    const name2 = selectedFighter2 ? selectedFighter2.name : "Fighter 2";
+
+    winnerSelect.innerHTML = `
+        <option value="f1">${name1}</option>
+        <option value="f2">${name2}</option>
+        <option value="draw">Draw</option>
+    `;
+}
+
+// Expose functions globally for inline HTML event listeners
+window.searchFightFighter = searchFightFighter;
+window.selectFightFighter = selectFightFighter;
