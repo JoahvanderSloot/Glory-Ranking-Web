@@ -84,8 +84,6 @@ function performPageSwitch(pageId) {
     }
 }
 
-// FORCE GLOBAL ACCESS (Crucial for ES Modules to work with inline onclick attributes)
-window.showPage = showPage;
 // ========================
 // ADMIN LOGIN
 // ========================
@@ -1356,4 +1354,3 @@ function updateWinnerDropdown() {
 
 // Expose functions globally for inline HTML event listeners
 window.searchFightFighter = searchFightFighter;
-window.selectFightFighter = selectFightFighter;
