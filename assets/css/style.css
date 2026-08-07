@@ -1531,12 +1531,23 @@ label[for="predictionSearch2"] {
   opacity: 0.6; /* Fallback visually if image transparency needs adjustment */
 }
 
-/* Bout icons in fight history table */
+/* Container for the WIN/LOSS text in your fight row */
+.fight-row .win,
+.fight-row .loss,
+.fight-row .draw {
+  position: relative; /* Keeps the belt icon anchored to this span */
+  display: inline-block;
+}
+
+/* Your preferred icon styling + absolute position to prevent text pushing */
 .bout-title-icon {
+  position: absolute;
+  right: 100%;             /* Places the icon right to the left of WIN */
+  top: 50%;
+  transform: translateY(-50%); /* Centers the icon vertically with the text */
   height: 16px;
   width: auto;
-  margin-right: 6px;
-  vertical-align: middle;
+  margin-right: 6px;       /* Spacing between icon and WIN */
 }
 
 /* ==========================================================

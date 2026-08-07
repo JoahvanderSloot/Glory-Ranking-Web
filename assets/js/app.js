@@ -211,28 +211,6 @@ window.onload = () => {
     loadData();
 }
 
-function populateWeightClasses() {
-    ["newFighterWeight", "editFighterWeight"].forEach(id => {
-        const sel = document.getElementById(id);
-        if (sel) {
-            sel.innerHTML = weightClasses.map(w => {
-                const name = typeof w === "string" ? w : w.name;
-                return `<option value="${name}">${name}</option>`;
-            }).join('');
-        }
-    });
-
-    const filter = document.getElementById("weightFilter");
-    if (filter) {
-        filter.innerHTML =
-            `<option value="all">All</option>` +
-            weightClasses.map(w => {
-                const name = typeof w === "string" ? w : w.name;
-                return `<option value="${name}">${name}</option>`;
-            }).join('');
-    }
-}
-
 // ========================
 // HELPER
 // ========================
@@ -455,8 +433,8 @@ function renderFightHistory(fights) {
         const wlColor = fight.result === "win" ? "#4caf50" :
             fight.result === "loss" ? "#ff4d4d" : "#aaa";
 
-        // Pass fight, fighterId, and global weightClasses array
-        const titleBoutIcon = getFightTitleIconHtml(fight, fighterId, weightClasses);
+        // PASS `fights` HERE as the 4th parameter
+        const titleBoutIcon = getFightTitleIconHtml(fight, fighterId, weightClasses, fights);
 
         return `<div class="fight-row">
             <span>${fight.date}</span>
@@ -464,7 +442,7 @@ function renderFightHistory(fights) {
                 ${opp ? opp.name : "Unknown"}
             </span>
             <span class="${fight.result}">
-                ${titleBoutIcon} ${fight.result.toUpperCase()}
+                ${titleBoutIcon}${fight.result.toUpperCase()}
             </span>
             <span>${fight.method}</span>
             <span>${eloChange > 0 ? "+" : ""}${eloChange}</span>
@@ -851,20 +829,153 @@ function addWeightClass() {
     // Clear the input
     wInput.value = "";
 }
-function removeWeightClass(i) {
-    weightClasses.splice(i, 1);
+// ========================
+// ADMIN: WEIGHT CLASSES
+// ========================
+let activeEditingIndex = null;
+
+function renderWeightClassList() {
+    const container = document.getElementById("weightClassList");
+    if (!container) return;
+
+    container.innerHTML = weightClasses.map((w, i) => {
+        const name = typeof w === "string" ? w : w.name;
+        const isDisabled = Boolean(w.disabled);
+        const isEditing = activeEditingIndex === i;
+
+        if (isEditing) {
+            return `
+            <div class="weight-class-edit-box" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <input type="text" id="editWcName_${i}" value="${name}" style="flex: 1; padding: 6px;">
+                    <button onclick="saveWeightClassEdit(${i})" style="padding: 6px 12px; background: #2ecc71; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+                    <button onclick="cancelWeightClassEdit()" style="padding: 6px 12px; background: #7f8c8d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" ${isDisabled ? "checked" : ""} onchange="toggleWeightClassDisabled(${i}, this.checked)">
+                        Disable (Hide from website for session)
+                    </label>
+                    <button 
+                        onclick="removeWeightClass(${i})" 
+                        disabled="${!isDisabled}"
+                        style="padding: 4px 8px; background: ${isDisabled ? '#e74c3c' : '#555'}; color: #fff; border: none; border-radius: 4px; cursor: ${isDisabled ? 'pointer' : 'not-allowed'}; opacity: ${isDisabled ? '1' : '0.5'};"
+                        title="${isDisabled ? 'Delete Weight Class' : 'Must be disabled first to delete'}"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        return `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+            <span style="${isDisabled ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${name} ${isDisabled ? '(Disabled)' : ''}</span>
+            <button class="edit-btn" onclick="editWeightClass(${i})" style="background: none; border: none; cursor: pointer; font-size: 1.1em;" title="Edit Weight Class">✏️</button>
+        </div>`;
+    }).join('');
+}
+
+function editWeightClass(index) {
+    activeEditingIndex = index;
+    renderWeightClassList();
+}
+
+function cancelWeightClassEdit() {
+    activeEditingIndex = null;
+    renderWeightClassList();
+}
+
+function saveWeightClassEdit(index) {
+    const input = document.getElementById(`editWcName_${index}`);
+    if (!input) return;
+
+    const newName = input.value.trim();
+    if (!newName) return alert("Weight class name cannot be empty.");
+
+    const oldName = typeof weightClasses[index] === "string" ? weightClasses[index] : weightClasses[index].name;
+
+    // Update weightClass entry while preserving object structure if present
+    if (typeof weightClasses[index] === "string") {
+        weightClasses[index] = newName;
+    } else {
+        weightClasses[index].name = newName;
+    }
+
+    // Optionally update fighters assigned to this weight class
+    if (oldName !== newName) {
+        fighters.forEach(f => {
+            if (f.weightClass === oldName) f.weightClass = newName;
+        });
+    }
+
+    activeEditingIndex = null;
     saveData();
     populateWeightClasses();
     renderWeightClassList();
 }
-function renderWeightClassList() {
-    document.getElementById("weightClassList").innerHTML = weightClasses.map((w, i) => `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-      <span>${w}</span>
-      <button class="remove-btn" onclick="removeWeightClass(${i})">✕</button>
-    </div>
-  `).join('');
+
+function toggleWeightClassDisabled(index, disabled) {
+    if (typeof weightClasses[index] === "string") {
+        weightClasses[index] = { name: weightClasses[index], disabled: disabled };
+    } else {
+        weightClasses[index].disabled = disabled;
+    }
+    
+    // Refresh website dropdowns so disabled items hide during this session
+    populateWeightClasses();
+    renderWeightClassList();
 }
+
+function removeWeightClass(i) {
+    const wc = weightClasses[i];
+    const isDisabled = Boolean(wc && wc.disabled);
+
+    if (!isDisabled) {
+        alert("You must disable this weight class before you can delete it.");
+        return;
+    }
+
+    const confirmed = confirm("Are you sure you want to delete this? Cause it will delete all weightclass title history aswell.");
+    if (!confirmed) return;
+
+    weightClasses.splice(i, 1);
+    activeEditingIndex = null;
+    saveData();
+    populateWeightClasses();
+    renderWeightClassList();
+}
+
+// Updated to filter out disabled weight classes from session dropdowns
+function populateWeightClasses() {
+    const activeWeightClasses = weightClasses.filter(w => !w.disabled);
+
+    ["newFighterWeight", "editFighterWeight"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+            sel.innerHTML = activeWeightClasses.map(w => {
+                const name = typeof w === "string" ? w : w.name;
+                return `<option value="${name}">${name}</option>`;
+            }).join('');
+        }
+    });
+
+    const filter = document.getElementById("weightFilter");
+    if (filter) {
+        filter.innerHTML =
+            `<option value="all">All</option>` +
+            activeWeightClasses.map(w => {
+                const name = typeof w === "string" ? w : w.name;
+                return `<option value="${name}">${name}</option>`;
+            }).join('');
+    }
+}
+
+// Ensure new functions are exposed globally
+window.editWeightClass = editWeightClass;
+window.cancelWeightClassEdit = cancelWeightClassEdit;
+window.saveWeightClassEdit = saveWeightClassEdit;
+window.toggleWeightClassDisabled = toggleWeightClassDisabled;
 
 // ========================
 // ADMIN: UPLOAD/DOWNLOAD JSON
@@ -1105,6 +1216,9 @@ function getFighterBeltIcons(fighterId, weightClassesData) {
 // ==========================================
 // CHAMPIONSHIP BELT ICONS CONFIGURATION
 // ==========================================
+// ==========================================
+// CHAMPIONSHIP BELT ICONS CONFIGURATION
+// ==========================================
 const BELT_ICONS = {
   undisputed: "assets/images/UndisputerFichterIcon.png",
   previousUndisputed: "assets/images/PreviousUndisputerFichterIcon.png",
@@ -1114,128 +1228,112 @@ const BELT_ICONS = {
   interimBout: "assets/images/InterimBout.png"
 };
 
-function getFighterBeltBadgesHtml(fighterId, weightClassesData = []) {
-  const icons = [];
-
-  weightClassesData.forEach((wc) => {
-    if (typeof wc === "string") return;
-
-    // 1. Active Undisputed Champion
-    if (wc.currentChampId === fighterId) {
-      icons.push(
-        `<img src="${BELT_ICONS.undisputed}" class="belt-icon" title="${wc.name} Champion" alt="Gold Belt">`
-      );
-    }
-
-    // 2. Active Interim Champion
-    if (wc.currentInterimChampId === fighterId) {
-      icons.push(
-        `<img src="${BELT_ICONS.interim}" class="belt-icon" title="Interim ${wc.name} Champion" alt="Silver Belt">`
-      );
-    }
-
-    // 3. Historical Reigns (Former Champs)
-    const formerReigns = (wc.reigns || []).filter(
-      (r) => r.fighterId === fighterId && r.endDate !== null
-    );
-
-    formerReigns.forEach((reign) => {
-      const isActiveNow =
-        (reign.type === "undisputed" && wc.currentChampId === fighterId) ||
-        (reign.type === "interim" && wc.currentInterimChampId === fighterId);
-
-      if (!isActiveNow) {
-        if (reign.type === "undisputed") {
-          icons.push(
-            `<img src="${BELT_ICONS.previousUndisputed}" class="belt-icon translucent" title="Former ${wc.name} Champion" alt="Translucent Gold Belt">`
-          );
-        } else {
-          icons.push(
-            `<img src="${BELT_ICONS.previousInterim}" class="belt-icon translucent" title="Former Interim ${wc.name} Champion" alt="Translucent Silver Belt">`
-          );
-        }
-      }
-    });
-  });
-
-  if (icons.length === 0) return "";
-  return `<span class="fighter-belts">${icons.join("")}</span>`;
-}
-
-function getFightTitleIconHtml(fight, fighterId = null, weightClassesData = []) {
+/**
+ * Checks if a fight is a title bout.
+ * Checks direct properties (isTitleFight, isTitle, isTitleBout) 
+ * OR cross-references weightClasses.titleBouts by date & fighter ID.
+ */
+function getFightTitleIconHtml(fight, fighterId = null, weightClassesData = [], allFights = []) {
   if (!fight) return "";
 
-  let isTitle = false;
-  let type = fight.type || fight.titleFight?.type || "";
+  // 1. TOURNAMENT FILTER: If multiple fights occurred on the same date,
+  // only show the title icon for the last fight of that date (the tournament final).
+  if (allFights && allFights.length > 0) {
+    const sameDayFights = allFights.filter(
+      (f) => String(f.date).trim() === String(fight.date).trim()
+    );
 
-  // 1. Direct check on the fight object (if explicitly flagged on fight)
-  if (
-    fight.isTitle ||
-    fight.titleFight?.isTitle ||
-    type === "undisputed" ||
-    type === "interim"
-  ) {
-    isTitle = true;
+    if (sameDayFights.length > 1) {
+      // The last fight of the date in chronological order is the tournament final
+      const finalFightOfDay = sameDayFights[sameDayFights.length - 1];
+
+      const isFinalFight = (fight === finalFightOfDay) || 
+                           (String(fight.opponentId) === String(finalFightOfDay.opponentId));
+
+      // Suppress title icon for earlier tournament rounds
+      if (!isFinalFight) {
+        return "";
+      }
+    }
   }
 
-  // 2. Cross-reference with weightClasses titleBouts/titleFights
-  // Requires matching DATE AND BOTH PARTICIPANTS (fighterId + opponentId)
-  if (!isTitle && fighterId && fight.opponentId && weightClassesData.length > 0) {
-    weightClassesData.forEach((wc) => {
-      if (typeof wc === "string") return;
+  // 2. Direct check on fight object
+  let isTitle = Boolean(
+    fight.isTitleFight || 
+    fight.isTitle || 
+    fight.isTitleBout || 
+    fight.titleFight?.isTitle
+  );
+  let type = fight.type || fight.titleType || fight.titleFight?.type || "";
+
+  // 3. Cross-reference with weightClasses titleBouts
+  if (!isTitle && weightClassesData.length > 0) {
+    const fId = fighterId ? String(fighterId) : null;
+    const oppId = fight.opponentId ? String(fight.opponentId) : null;
+    const fightDate = String(fight.date).trim();
+
+    for (const wc of weightClassesData) {
+      if (typeof wc === "string") continue;
       const bouts = wc.titleBouts || wc.titleFights || [];
+
       const match = bouts.find((b) => {
-        if (b.date !== fight.date) return false;
+        if (String(b.date).trim() !== fightDate) return false;
 
-        // Collect all fighter IDs in this title bout
-        const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
+        const participants = [b.championId, b.challengerId, b.winnerId]
+          .filter((id) => id !== null && id !== undefined)
+          .map(String);
 
-        // BOTH current fighter AND opponent must be in the title bout
-        return boutFighters.includes(fighterId) && boutFighters.includes(fight.opponentId);
+        const matchesFighter = fId && participants.includes(fId);
+        const matchesOpponent = oppId && participants.includes(oppId);
+
+        return matchesFighter || matchesOpponent;
       });
 
       if (match) {
         isTitle = true;
         type = match.type || "undisputed";
+        break;
       }
-    });
+    }
   }
 
   if (!isTitle) return "";
 
-  const isUndisputed = type === "undisputed";
-  const iconSrc = isUndisputed ? BELT_ICONS.undisputedBout : BELT_ICONS.interimBout;
-  const titleText = isUndisputed ? "Undisputed Title Fight" : "Interim Title Fight";
+  const isInterim = type === "interim";
+  const iconSrc = isInterim ? BELT_ICONS.interimBout : BELT_ICONS.undisputedBout;
+  const titleText = isInterim ? "Interim Title Fight" : "Undisputed Title Fight";
 
   return `<img src="${iconSrc}" class="bout-title-icon" title="${titleText}" alt="Title Bout">`;
 }
 
+/**
+ * Renders title summary profile statistics from weightClasses reigns and bouts.
+ */
 function getTitleHistorySummary(fighter, weightClassesData = []) {
   if (!fighter) return "None";
 
+  const fid = String(fighter.id);
   let summaryParts = [];
 
-  // 1. Collect & Stack Reign Summaries per Weight Class and Belt Type
+  // 1. Summarize Reigns & Defenses from weightClasses data
   weightClassesData.forEach((wc) => {
     if (typeof wc === "string") return;
 
-    const fighterReigns = (wc.reigns || []).filter((r) => r.fighterId === fighter.id);
+    const fighterReigns = (wc.reigns || []).filter((r) => String(r.fighterId) === fid);
 
     ["undisputed", "interim"].forEach((type) => {
       const typeReigns = fighterReigns.filter((r) => r.type === type);
       if (typeReigns.length === 0) return;
 
       const reignCount = typeReigns.length;
-      // Combine defenses across all runs for this belt
       const totalDefenses = typeReigns.reduce((sum, r) => sum + (r.defenses || 0), 0);
 
       const isCurrentChamp =
-        (type === "undisputed" && wc.currentChampId === fighter.id) ||
-        (type === "interim" && wc.currentInterimChampId === fighter.id);
+        (type === "undisputed" && String(wc.currentChampId) === fid) ||
+        (type === "interim" && String(wc.currentInterimChampId) === fid);
 
       const baseTitleName = type === "interim" ? `Interim ${wc.name}` : wc.name;
 
-      // Construct title text based on status & run count
       let champTitle = "";
       if (isCurrentChamp) {
         champTitle = reignCount > 1 
@@ -1255,38 +1353,34 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
     });
   });
 
-  // 2. Count Contender Bouts (only title fight losses where they were NOT defending champ)
+  // 2. Count Title Contender losses
   let contenderLosses = 0;
 
   (fighter.fights || []).forEach((f) => {
-    let isTitle =
-      f.isTitle ||
-      f.titleFight?.isTitle ||
-      f.type === "undisputed" ||
-      f.type === "interim";
-
+    let isTitle = Boolean(f.isTitleFight || f.isTitle || f.isTitleBout);
     let wasDefendingChamp = false;
 
-    // Cross-reference with weightClasses titleBouts to verify if they were champion
     weightClassesData.forEach((wc) => {
       if (typeof wc === "string") return;
       const bouts = wc.titleBouts || wc.titleFights || [];
+
       const match = bouts.find((b) => {
-        if (b.date !== f.date) return false;
-        const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
-        return boutFighters.includes(fighter.id) && boutFighters.includes(f.opponentId);
+        if (String(b.date).trim() !== String(f.date).trim()) return false;
+        const participants = [b.championId, b.challengerId, b.winnerId]
+          .filter((id) => id !== null && id !== undefined)
+          .map(String);
+
+        return participants.includes(fid);
       });
 
       if (match) {
         isTitle = true;
-        // Check if they entered the bout as defending champion
-        if (match.championId === fighter.id) {
+        if (match.championId && String(match.championId) === fid) {
           wasDefendingChamp = true;
         }
       }
     });
 
-    // Only count if it was a title bout loss AND they weren't defending champion
     if (isTitle && f.result === "loss" && !wasDefendingChamp) {
       contenderLosses++;
     }
@@ -1296,11 +1390,57 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
     summaryParts.push(`${contenderLosses}x Title Contender`);
   }
 
-  if (summaryParts.length > 0) {
-    return summaryParts.join(", ");
-  }
+  return summaryParts.length > 0 ? summaryParts.join(", ") : "None";
+}
 
-  return "None";
+function getFighterBeltBadgesHtml(fighterId, weightClassesData = []) {
+  if (!fighterId) return "";
+  const icons = [];
+  const fid = String(fighterId);
+
+  weightClassesData.forEach((wc) => {
+    if (typeof wc === "string") return;
+
+    // 1. Active Undisputed Champion
+    if (wc.currentChampId && String(wc.currentChampId) === fid) {
+      icons.push(
+        `<img src="${BELT_ICONS.undisputed}" class="belt-icon" title="${wc.name} Champion" alt="Gold Belt">`
+      );
+    }
+
+    // 2. Active Interim Champion
+    if (wc.currentInterimChampId && String(wc.currentInterimChampId) === fid) {
+      icons.push(
+        `<img src="${BELT_ICONS.interim}" class="belt-icon" title="Interim ${wc.name} Champion" alt="Silver Belt">`
+      );
+    }
+
+    // 3. Historical Reigns (Former Champs)
+    const formerReigns = (wc.reigns || []).filter(
+      (r) => String(r.fighterId) === fid && r.endDate !== null
+    );
+
+    formerReigns.forEach((reign) => {
+      const isActiveNow =
+        (reign.type === "undisputed" && String(wc.currentChampId) === fid) ||
+        (reign.type === "interim" && String(wc.currentInterimChampId) === fid);
+
+      if (!isActiveNow) {
+        if (reign.type === "undisputed") {
+          icons.push(
+            `<img src="${BELT_ICONS.previousUndisputed}" class="belt-icon translucent" title="Former ${wc.name} Champion" alt="Translucent Gold Belt">`
+          );
+        } else {
+          icons.push(
+            `<img src="${BELT_ICONS.previousInterim}" class="belt-icon translucent" title="Former Interim ${wc.name} Champion" alt="Translucent Silver Belt">`
+          );
+        }
+      }
+    });
+  });
+
+  if (icons.length === 0) return "";
+  return `<span class="fighter-belts">${icons.join("")}</span>`;
 }
 
 // Global exposure for inline HTML event handlers
