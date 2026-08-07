@@ -877,7 +877,10 @@ function renderWeightClassList() {
 
         return `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 10px 14px; background: #161616; border: 1px solid #2d2d2d; border-radius: 8px;">
-            <span style="${isDisabled ? 'text-decoration: line-through; opacity: 0.5;' : 'color: #fff; font-weight: 500;'}">${name} ${isDisabled ? '<span style="color: #aaa; font-size: 12px; margin-left: 6px;">(Disabled)</span>' : ''}</span>
+            <div>
+    <span style="${isDisabled ? 'text-decoration: line-through; opacity: 0.5;' : 'color: #fff; font-weight: 500;'}">${name}</span>
+    ${isDisabled ? '<span style="color: #aaa; font-size: 12px; margin-left: 6px;">(Disabled)</span>' : ''}
+</div>
             <button class="edit-btn" onclick="editWeightClass(${i})" style="background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px;" title="Edit Weight Class">✏️</button>
         </div>`;
     }).join('');
