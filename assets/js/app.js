@@ -840,26 +840,33 @@ function renderWeightClassList() {
 
     container.innerHTML = weightClasses.map((w, i) => {
         const name = typeof w === "string" ? w : w.name;
-        const isDisabled = Boolean(w.disabled);
+        const isDisabled = Boolean(w && w.disabled);
         const isEditing = activeEditingIndex === i;
 
         if (isEditing) {
             return `
-            <div class="weight-class-edit-box" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="editWcName_${i}" value="${name}" style="flex: 1; padding: 6px;">
-                    <button onclick="saveWeightClassEdit(${i})" style="padding: 6px 12px; background: #2ecc71; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Save</button>
-                    <button onclick="cancelWeightClassEdit()" style="padding: 6px 12px; background: #7f8c8d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+            <div class="weight-class-edit-box" style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333;">
+                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                    <input type="text" id="editWcName_${i}" value="${name}" style="flex: 1; margin-bottom: 0; padding: 10px; background: #0d0d0d; border: 1px solid #444; color: #fff; border-radius: 6px;">
+                    <button onclick="saveWeightClassEdit(${i})" style="padding: 10px 16px; background: #2ecc71; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Save</button>
+                    <button onclick="cancelWeightClassEdit()" style="padding: 10px 16px; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;">
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                        <input type="checkbox" ${isDisabled ? "checked" : ""} onchange="toggleWeightClassDisabled(${i}, this.checked)">
-                        Disable (Hide from website for session)
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <label style="display: inline-flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; color: #fff; font-size: 14px; user-select: none;">
+                        <input 
+                            type="checkbox" 
+                            ${isDisabled ? "checked" : ""} 
+                            onchange="toggleWeightClassDisabled(${i}, this.checked)" 
+                            style="width: 18px; height: 18px; margin: 0; accent-color: gold; cursor: pointer; vertical-align: middle; flex-shrink: 0;"
+                        >
+                        <span style="line-height: 1.2;">Disable (Hide from website for session)</span>
                     </label>
+                    
                     <button 
                         onclick="removeWeightClass(${i})" 
-                        disabled="${!isDisabled}"
-                        style="padding: 4px 8px; background: ${isDisabled ? '#e74c3c' : '#555'}; color: #fff; border: none; border-radius: 4px; cursor: ${isDisabled ? 'pointer' : 'not-allowed'}; opacity: ${isDisabled ? '1' : '0.5'};"
+                        ${!isDisabled ? "disabled" : ""}
+                        style="padding: 8px 14px; background: ${isDisabled ? '#e74c3c' : '#222'}; color: ${isDisabled ? '#fff' : '#666'}; border: 1px solid ${isDisabled ? '#c0392b' : '#333'}; border-radius: 6px; cursor: ${isDisabled ? 'pointer' : 'not-allowed'}; font-weight: bold; transition: 0.2s;"
                         title="${isDisabled ? 'Delete Weight Class' : 'Must be disabled first to delete'}"
                     >
                         Delete
@@ -869,11 +876,30 @@ function renderWeightClassList() {
         }
 
         return `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-            <span style="${isDisabled ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${name} ${isDisabled ? '(Disabled)' : ''}</span>
-            <button class="edit-btn" onclick="editWeightClass(${i})" style="background: none; border: none; cursor: pointer; font-size: 1.1em;" title="Edit Weight Class">✏️</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 10px 14px; background: #161616; border: 1px solid #2d2d2d; border-radius: 8px;">
+            <span style="${isDisabled ? 'text-decoration: line-through; opacity: 0.5;' : 'color: #fff; font-weight: 500;'}">${name} ${isDisabled ? '<span style="color: #aaa; font-size: 12px; margin-left: 6px;">(Disabled)</span>' : ''}</span>
+            <button class="edit-btn" onclick="editWeightClass(${i})" style="background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px;" title="Edit Weight Class">✏️</button>
         </div>`;
     }).join('');
+}
+
+function removeWeightClass(i) {
+    const wc = weightClasses[i];
+    const isDisabled = Boolean(wc && wc.disabled);
+
+    if (!isDisabled) {
+        alert("You must disable this weight class before you can delete it.");
+        return;
+    }
+
+    const confirmed = confirm("Are you sure you want to delete this? Cause it will delete all weightclass title history aswell.");
+    if (!confirmed) return;
+
+    weightClasses.splice(i, 1);
+    activeEditingIndex = null;
+    saveData();
+    populateWeightClasses();
+    renderWeightClassList();
 }
 
 function editWeightClass(index) {
@@ -923,25 +949,6 @@ function toggleWeightClassDisabled(index, disabled) {
     }
     
     // Refresh website dropdowns so disabled items hide during this session
-    populateWeightClasses();
-    renderWeightClassList();
-}
-
-function removeWeightClass(i) {
-    const wc = weightClasses[i];
-    const isDisabled = Boolean(wc && wc.disabled);
-
-    if (!isDisabled) {
-        alert("You must disable this weight class before you can delete it.");
-        return;
-    }
-
-    const confirmed = confirm("Are you sure you want to delete this? Cause it will delete all weightclass title history aswell.");
-    if (!confirmed) return;
-
-    weightClasses.splice(i, 1);
-    activeEditingIndex = null;
-    saveData();
     populateWeightClasses();
     renderWeightClassList();
 }
