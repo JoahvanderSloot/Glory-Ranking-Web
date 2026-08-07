@@ -1302,18 +1302,25 @@ function searchFightFighter(num) {
     `).join("");
 }
 
-function selectFightFighter(num, id) {
+function selectFightFighter(target, id) {
     const fighter = getFighterById(id);
     if (!fighter) return;
 
-    if (num === 1) {
+    // Check if target is 1, "1", or the input element ID "fightSearch1"
+    const isFighter1 = target === 1 || target === "1" || target === "fightSearch1";
+
+    if (isFighter1) {
         selectedFighter1 = fighter;
-        document.getElementById("fightSearch1").value = fighter.name;
-        document.getElementById("fightResults1").innerHTML = "";
+        const input = document.getElementById("fightSearch1");
+        if (input) input.value = fighter.name;
+        const box = document.getElementById("fightResults1");
+        if (box) box.innerHTML = "";
     } else {
         selectedFighter2 = fighter;
-        document.getElementById("fightSearch2").value = fighter.name;
-        document.getElementById("fightResults2").innerHTML = "";
+        const input = document.getElementById("fightSearch2");
+        if (input) input.value = fighter.name;
+        const box = document.getElementById("fightResults2");
+        if (box) box.innerHTML = "";
     }
 
     updateWinnerDropdown();
