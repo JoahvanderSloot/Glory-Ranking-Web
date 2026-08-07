@@ -1511,3 +1511,30 @@ label[for="predictionSearch2"] {
     display: none;
     border: none;
 }
+
+/* Belt badges next to fighter names */
+.fighter-belts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.belt-icon {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.belt-icon.translucent {
+  opacity: 0.6; /* Fallback visually if image transparency needs adjustment */
+}
+
+/* Bout icons in fight history table */
+.bout-title-icon {
+  height: 16px;
+  width: auto;
+  margin-right: 6px;
+  vertical-align: middle;
+}

@@ -212,20 +212,24 @@ window.onload = () => {
 }
 
 function populateWeightClasses() {
-    // Admin dropdowns
     ["newFighterWeight", "editFighterWeight"].forEach(id => {
         const sel = document.getElementById(id);
         if (sel) {
-            sel.innerHTML = weightClasses.map(w => `<option value="${w}">${w}</option>`).join('');
+            sel.innerHTML = weightClasses.map(w => {
+                const name = typeof w === "string" ? w : w.name;
+                return `<option value="${name}">${name}</option>`;
+            }).join('');
         }
     });
 
-    // ✅ Leaderboard dropdown
     const filter = document.getElementById("weightFilter");
     if (filter) {
         filter.innerHTML =
             `<option value="all">All</option>` +
-            weightClasses.map(w => `<option value="${w}">${w}</option>`).join('');
+            weightClasses.map(w => {
+                const name = typeof w === "string" ? w : w.name;
+                return `<option value="${name}">${name}</option>`;
+            }).join('');
     }
 }
 
@@ -234,6 +238,9 @@ function populateWeightClasses() {
 // ========================
 function getFighterById(id) { return fighters.find(f => f.id === id); }
 
+// ========================
+// LEADERBOARD
+// ========================
 // ========================
 // LEADERBOARD
 // ========================
@@ -287,22 +294,36 @@ function renderLeaderboard() {
                 : `<span class="gender-badge male">♂</span>`;
         }
 
+        // Get belt icons for leaderboard row
+        const beltBadges = getFighterBeltBadgesHtml(f.id, weightClasses);
+
         return `
         <div class="fighter-row ${f.retired ? 'retired' : ''}" onclick="openFighter(${f.id})">
             <span class="rank">#${index + 1}</span>
             <span class="name">
-                ${genderIcon} ${nameDisplay} ${retiredTag}
+                ${genderIcon} ${nameDisplay} ${beltBadges} ${retiredTag}
             </span>
             <span class="elo">${elo}</span>
         </div>
         `;
     }).join("");
 }
+
 function searchLeaderboard() {
     const query = document.getElementById("leaderboardSearch").value.toLowerCase();
     const results = fighters.filter(f => f.name.toLowerCase().includes(query));
     const box = document.getElementById("leaderboardResults");
     box.innerHTML = results.map(f => `<div class="fighter-row" onclick="openFighter(${f.id})">${f.name}</div>`).join("");
+    // Inside your loop rendering leaderboard rows:
+const beltBadges = getFighterBeltBadgesHtml(fighter.id, data.weightClasses);
+
+row.innerHTML = `
+  <td>${rank}</td>
+  <td>
+    <strong>${fighter.name}</strong> ${beltBadges}
+  </td>
+  <td>${fighter.elo}</td>
+`;
 }
 // ========================
 // FIGHTER SEARCH
@@ -367,6 +388,9 @@ window.selectPredictionFighter = selectPredictionFighter;
 // ========================
 // FIGHTER PROFILE
 // ========================
+// ========================
+// FIGHTER PROFILE
+// ========================
 function openFighter(id) {
     const f = getFighterById(id);
     if (!f) return;
@@ -374,32 +398,49 @@ function openFighter(id) {
     renderFighterProfile(f);
     showPage("fighterProfile");
 }
-function renderFighterProfile(f) {
-    document.getElementById("fighterName").innerText = f.name;
-    document.getElementById("fighterStats").innerHTML = `
 
-<div class="stats-grid">
-    <div><strong>Weight:</strong> ${f.weightClass}</div>
-    <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
-    <div><strong>Record:</strong> ${f.draws > 0
-            ? `${f.wins}-${f.losses}-${f.draws}`
-            : `${f.wins}-${f.losses}`
-        }</div>
-    <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
-    <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
-    <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
-</div>
-  `;
+function renderFighterProfile(f) {
+    const beltBadges = getFighterBeltBadgesHtml(f.id, weightClasses);
+    const titleSummary = getTitleHistorySummary(f, weightClasses);
+
+    const nameElem = document.getElementById("fighterName");
+    if (nameElem) {
+        nameElem.innerHTML = `${f.name} ${beltBadges}`;
+    }
+
+    const statsElem = document.getElementById("fighterStats");
+    if (statsElem) {
+        statsElem.innerHTML = `
+        <div class="stats-grid">
+            <div><strong>Weight:</strong> ${f.weightClass}</div>
+            <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
+            <div><strong>Record:</strong> ${f.draws > 0
+                    ? `${f.wins}-${f.losses}-${f.draws}`
+                    : `${f.wins}-${f.losses}`
+                }</div>
+            <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
+            <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
+            <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
+            <div><strong>Title History:</strong> ${titleSummary}</div>
+        </div>
+        `;
+    }
+
     renderFightHistory(f.fights);
     renderEloChart(f.fights);
 }
+
 function renderFightHistory(fights) {
-    const isMobile = window.innerWidth <= 768; // mobile breakpoint
-    document.getElementById("fightHistory").innerHTML = fights.slice().reverse().map(fight => {
+    const isMobile = window.innerWidth <= 768;
+    const historyContainer = document.getElementById("fightHistory");
+    if (!historyContainer) return;
+
+    const fighterId = currentFighter ? currentFighter.id : null;
+
+    historyContainer.innerHTML = fights.slice().reverse().map(fight => {
         const opp = getFighterById(fight.opponentId);
         const eloChange = showKOBonus ? fight.eloChangeKO : fight.eloChange;
 
-        // Determine W/L/D
         let wlSymbol = "";
         if (fight.result === "win") wlSymbol = "W";
         else if (fight.result === "loss") wlSymbol = "L";
@@ -408,13 +449,17 @@ function renderFightHistory(fights) {
         const wlColor = fight.result === "win" ? "#4caf50" :
             fight.result === "loss" ? "#ff4d4d" : "#aaa";
 
+        // Pass fight, fighterId, and global weightClasses array
+        const titleBoutIcon = getFightTitleIconHtml(fight, fighterId, weightClasses);
+
         if (isMobile) {
             return `<div class="fight-row">
-        <span>${fight.date}</span>
-        <span class="clickable" onclick="openFighter(${fight.opponentId})">
-            <span style="color:${wlColor}; font-weight:bold; margin-right:15px;">${wlSymbol}</span>${opp ? opp.name : "Unknown"}
-        </span>
-    </div>`;
+                <span>${fight.date}</span>
+                <span class="clickable" onclick="openFighter(${fight.opponentId})">
+                    ${titleBoutIcon}
+                    <span style="color:${wlColor}; font-weight:bold; margin-right:15px;">${wlSymbol}</span>${opp ? opp.name : "Unknown"}
+                </span>
+            </div>`;
         }
 
         return `<div class="fight-row">
@@ -422,12 +467,15 @@ function renderFightHistory(fights) {
             <span class="clickable" onclick="openFighter(${fight.opponentId})">
                 ${opp ? opp.name : "Unknown"}
             </span>
-            <span class="${fight.result}">${fight.result.toUpperCase()}</span>
+            <span class="${fight.result}">
+                ${titleBoutIcon} ${fight.result.toUpperCase()}
+            </span>
             <span>${fight.method}</span>
             <span>${eloChange > 0 ? "+" : ""}${eloChange}</span>
         </div>`;
     }).join("");
 }
+
 function renderEloChart(fights) {
     const ctx = document.getElementById("eloChart").getContext("2d");
 
@@ -621,28 +669,179 @@ function updateFightWinnerOptions() {
     if (fightSelection.f2) sel.innerHTML += `<option value="${fightSelection.f2}">Winner: ${getFighterById(fightSelection.f2).name}</option>`;
 }
 function addFightAdmin() {
-    const f1 = fightSelection.f1;
-    const f2 = fightSelection.f2;
-    const winner = document.getElementById("fightWinner").value;
-    const method = document.getElementById("fightMethod").value;
     const date = document.getElementById("fightDate").value;
+    const winnerValue = document.getElementById("fightWinner").value;
+    const method = document.getElementById("fightMethod").value;
+    const titleType = document.getElementById("fightTitleType")?.value || "none";
 
-    if (!f1 || !f2 || !date || !method || !winner) {
-        alert("Please fill in all fields");
+    if (!selectedFighter1 || !selectedFighter2) {
+        alert("Please select both fighters.");
         return;
     }
 
-    if (f1 === f2) {
-        alert("Fighters must be different");
+    if (!date) {
+        alert("Please select a date.");
         return;
     }
 
-    const winnerId = winner === "draw" ? null : parseInt(winner);
+    const f1 = selectedFighter1;
+    const f2 = selectedFighter2;
 
-    addFight(f1, f2, winnerId, method, date);
+    let result1 = "draw";
+    let result2 = "draw";
+    let winnerId = null;
+    let loserId = null;
 
-    clearAddFightFields(); // ✅ NEW
-    alert("Fight added!");
+    if (winnerValue === "f1") {
+        result1 = "win";
+        result2 = "loss";
+        winnerId = f1.id;
+        loserId = f2.id;
+    } else if (winnerValue === "f2") {
+        result1 = "loss";
+        result2 = "win";
+        winnerId = f2.id;
+        loserId = f1.id;
+    }
+
+    // 1. Calculate Elo Updates
+    const eloChange = calculateEloChange(f1.elo, f2.elo, result1, method);
+    const eloKOChange = calculateEloChange(f1.eloKO, f2.eloKO, result1, method, true);
+
+    f1.elo += eloChange;
+    f2.elo -= eloChange;
+    f1.eloKO += eloKOChange;
+    f2.eloKO -= eloKOChange;
+
+    if (f1.elo > f1.peakElo) f1.peakElo = f1.elo;
+    if (f2.elo > f2.peakElo) f2.peakElo = f2.elo;
+    if (f1.eloKO > f1.peakEloKO) f1.peakEloKO = f1.eloKO;
+    if (f2.eloKO > f2.peakEloKO) f2.peakEloKO = f2.eloKO;
+
+    // 2. Build fight object for fighters
+    const fightForF1 = {
+        date: date,
+        opponentId: f2.id,
+        result: result1,
+        method: method,
+        eloChange: eloChange,
+        eloChangeKO: eloKOChange
+    };
+
+    const fightForF2 = {
+        date: date,
+        opponentId: f1.id,
+        result: result2,
+        method: method,
+        eloChange: -eloChange,
+        eloChangeKO: -eloKOChange
+    };
+
+    // Attach title type if not 'none'
+    if (titleType !== "none") {
+        const resolvedType = titleType === "interim" ? "interim" : "undisputed";
+        fightForF1.type = resolvedType;
+        fightForF2.type = resolvedType;
+        fightForF1.isTitle = true;
+        fightForF2.isTitle = true;
+    }
+
+    // Update fighter records
+    f1.fights.push(fightForF1);
+    f2.fights.push(fightForF2);
+
+    if (result1 === "win") { f1.wins++; f2.losses++; }
+    else if (result1 === "loss") { f1.losses++; f2.wins++; }
+    else { f1.draws++; f2.draws++; }
+
+    // 3. Update Weight Classes Championship Data
+    if (titleType !== "none") {
+        updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
+    }
+
+    alert("Fight added successfully!");
+    
+    // Reset selection & forms
+    selectedFighter1 = null;
+    selectedFighter2 = null;
+    document.getElementById("fightSearch1").value = "";
+    document.getElementById("fightSearch2").value = "";
+    document.getElementById("fightTitleType").value = "none";
+    renderLeaderboard();
+}
+
+function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
+    // Determine target weight class object
+    const targetWcName = f1.weightClass || f2.weightClass;
+    const wcObj = weightClasses.find(w => typeof w === "object" && w.name === targetWcName);
+
+    if (!wcObj) return;
+
+    wcObj.titleBouts = wcObj.titleBouts || wcObj.titleFights || [];
+    wcObj.reigns = wcObj.reigns || [];
+
+    const beltType = titleType === "interim" ? "interim" : "undisputed";
+
+    // A. Log Title Bout
+    wcObj.titleBouts.push({
+        date: date,
+        type: beltType,
+        challengerId: loserId,
+        winnerId: winnerId,
+        championId: wcObj.currentChampId || null
+    });
+
+    if (!winnerId) return; // Draw - no belt change
+
+    // B. Handle Belt Handover & Reign Logic
+    if (beltType === "undisputed") {
+        // Successful defense by current champ
+        if (wcObj.currentChampId === winnerId) {
+            const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "undisputed");
+            if (currentReign) {
+                currentReign.defenses = (currentReign.defenses || 0) + 1;
+            }
+        } else {
+            // End old champion reign if dethroned or filled vacant title
+            if (wcObj.currentChampId) {
+                const oldReign = wcObj.reigns.find(r => r.fighterId === wcObj.currentChampId && r.endDate === null && r.type === "undisputed");
+                if (oldReign) oldReign.endDate = date;
+            }
+
+            // Set new champion
+            wcObj.currentChampId = winnerId;
+            wcObj.reigns.push({
+                fighterId: winnerId,
+                type: "undisputed",
+                startDate: date,
+                endDate: null,
+                defenses: 0
+            });
+        }
+    } else if (beltType === "interim") {
+        // Successful defense of interim title
+        if (wcObj.currentInterimChampId === winnerId) {
+            const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "interim");
+            if (currentReign) {
+                currentReign.defenses = (currentReign.defenses || 0) + 1;
+            }
+        } else {
+            // New Interim Champ
+            if (wcObj.currentInterimChampId) {
+                const oldReign = wcObj.reigns.find(r => r.fighterId === wcObj.currentInterimChampId && r.endDate === null && r.type === "interim");
+                if (oldReign) oldReign.endDate = date;
+            }
+
+            wcObj.currentInterimChampId = winnerId;
+            wcObj.reigns.push({
+                fighterId: winnerId,
+                type: "interim",
+                startDate: date,
+                endDate: null,
+                defenses: 0
+            });
+        }
+    }
 }
 
 function clearAddFightFields() {
@@ -891,3 +1090,211 @@ if (typeof originalSelectFighter === 'function') {
         });
     };
 }
+
+function getFighterBeltIcons(fighterId, weightClassesData) {
+  const badges = [];
+
+  weightClassesData.forEach(wc => {
+    // 1. Check active undisputed title
+    if (wc.currentChampId === fighterId) {
+      badges.push({ type: 'gold', label: `${wc.name} Champion` });
+    }
+    // 2. Check active interim title
+    if (wc.currentInterimChampId === fighterId) {
+      badges.push({ type: 'silver', label: `Interim ${wc.name} Champion` });
+    }
+
+    // 3. Check historical reigns (former champs)
+    const formerReigns = wc.reigns.filter(r => r.fighterId === fighterId && r.endDate !== null);
+    
+    formerReigns.forEach(reign => {
+      // If they currently hold this exact active belt, don't duplicate as "former"
+      const isActiveNow = (reign.type === 'undisputed' && wc.currentChampId === fighterId) ||
+                          (reign.type === 'interim' && wc.currentInterimChampId === fighterId);
+                          
+      if (!isActiveNow) {
+        if (reign.type === 'undisputed') {
+          badges.push({ type: 'translucent-gold', label: `Former ${wc.name} Champion` });
+        } else {
+          badges.push({ type: 'translucent-silver', label: `Former Interim ${wc.name} Champion` });
+        }
+      }
+    });
+  });
+
+  return badges; // Array of icon types to render (e.g. ['gold', 'translucent-gold'])
+}
+
+// ==========================================
+// CHAMPIONSHIP BELT ICONS CONFIGURATION
+// ==========================================
+const BELT_ICONS = {
+  undisputed: "assets/images/UndisputerFichterIcon.png",
+  previousUndisputed: "assets/images/PreviousUndisputerFichterIcon.png",
+  interim: "assets/images/InterimFighterIcon.png",
+  previousInterim: "assets/images/PreviousInterimFighterIcon.png",
+  undisputedBout: "assets/images/UndisputedBout.png",
+  interimBout: "assets/images/InterimBout.png"
+};
+
+function getFighterBeltBadgesHtml(fighterId, weightClassesData = []) {
+  const icons = [];
+
+  weightClassesData.forEach((wc) => {
+    if (typeof wc === "string") return;
+
+    // 1. Active Undisputed Champion
+    if (wc.currentChampId === fighterId) {
+      icons.push(
+        `<img src="${BELT_ICONS.undisputed}" class="belt-icon" title="${wc.name} Champion" alt="Gold Belt">`
+      );
+    }
+
+    // 2. Active Interim Champion
+    if (wc.currentInterimChampId === fighterId) {
+      icons.push(
+        `<img src="${BELT_ICONS.interim}" class="belt-icon" title="Interim ${wc.name} Champion" alt="Silver Belt">`
+      );
+    }
+
+    // 3. Historical Reigns (Former Champs)
+    const formerReigns = (wc.reigns || []).filter(
+      (r) => r.fighterId === fighterId && r.endDate !== null
+    );
+
+    formerReigns.forEach((reign) => {
+      const isActiveNow =
+        (reign.type === "undisputed" && wc.currentChampId === fighterId) ||
+        (reign.type === "interim" && wc.currentInterimChampId === fighterId);
+
+      if (!isActiveNow) {
+        if (reign.type === "undisputed") {
+          icons.push(
+            `<img src="${BELT_ICONS.previousUndisputed}" class="belt-icon translucent" title="Former ${wc.name} Champion" alt="Translucent Gold Belt">`
+          );
+        } else {
+          icons.push(
+            `<img src="${BELT_ICONS.previousInterim}" class="belt-icon translucent" title="Former Interim ${wc.name} Champion" alt="Translucent Silver Belt">`
+          );
+        }
+      }
+    });
+  });
+
+  if (icons.length === 0) return "";
+  return `<span class="fighter-belts">${icons.join("")}</span>`;
+}
+
+function getFightTitleIconHtml(fight, fighterId = null, weightClassesData = []) {
+  if (!fight) return "";
+
+  let isTitle = false;
+  let type = fight.type || fight.titleFight?.type || "";
+
+  // 1. Direct check on the fight object (if explicitly flagged on fight)
+  if (
+    fight.isTitle ||
+    fight.titleFight?.isTitle ||
+    type === "undisputed" ||
+    type === "interim"
+  ) {
+    isTitle = true;
+  }
+
+  // 2. Cross-reference with weightClasses titleBouts/titleFights
+  // Requires matching DATE AND BOTH PARTICIPANTS (fighterId + opponentId)
+  if (!isTitle && fighterId && fight.opponentId && weightClassesData.length > 0) {
+    weightClassesData.forEach((wc) => {
+      if (typeof wc === "string") return;
+      const bouts = wc.titleBouts || wc.titleFights || [];
+      const match = bouts.find((b) => {
+        if (b.date !== fight.date) return false;
+
+        // Collect all fighter IDs in this title bout
+        const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
+
+        // BOTH current fighter AND opponent must be in the title bout
+        return boutFighters.includes(fighterId) && boutFighters.includes(fight.opponentId);
+      });
+
+      if (match) {
+        isTitle = true;
+        type = match.type || "undisputed";
+      }
+    });
+  }
+
+  if (!isTitle) return "";
+
+  const isUndisputed = type === "undisputed";
+  const iconSrc = isUndisputed ? BELT_ICONS.undisputedBout : BELT_ICONS.interimBout;
+  const titleText = isUndisputed ? "Undisputed Title Fight" : "Interim Title Fight";
+
+  return `<img src="${iconSrc}" class="bout-title-icon" title="${titleText}" alt="Title Bout">`;
+}
+
+function getTitleHistorySummary(fighter, weightClassesData = []) {
+  if (!fighter) return "None";
+
+  let summaryParts = [];
+  let titleLosses = 0;
+
+  // 1. Collect Reign Summaries & Defenses
+  weightClassesData.forEach((wc) => {
+    if (typeof wc === "string") return;
+
+    const fighterReigns = (wc.reigns || []).filter((r) => r.fighterId === fighter.id);
+
+    fighterReigns.forEach((reign) => {
+      const titleName = reign.type === "interim" ? `Interim ${wc.name}` : wc.name;
+      const defensesText = reign.defenses > 0 
+        ? ` (${reign.defenses} ${reign.defenses === 1 ? "defense" : "defenses"})` 
+        : "";
+
+      summaryParts.push(`${titleName} Champion${defensesText}`);
+    });
+  });
+
+  // 2. Count Title Losses / Contender Attempts
+  (fighter.fights || []).forEach((f) => {
+    let isTitle =
+      f.isTitle ||
+      f.titleFight?.isTitle ||
+      f.type === "undisputed" ||
+      f.type === "interim";
+
+    // Also verify against weightClasses titleBouts if not flagged on fight directly
+    if (!isTitle && f.opponentId && weightClassesData.length > 0) {
+      weightClassesData.forEach((wc) => {
+        if (typeof wc === "string") return;
+        const bouts = wc.titleBouts || wc.titleFights || [];
+        const match = bouts.find((b) => {
+          if (b.date !== f.date) return false;
+          const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
+          return boutFighters.includes(fighter.id) && boutFighters.includes(f.opponentId);
+        });
+        if (match) isTitle = true;
+      });
+    }
+
+    if (isTitle && f.result === "loss") {
+      titleLosses++;
+    }
+  });
+
+  // 3. Append Contender Tag if they have title fight losses
+  if (titleLosses > 0) {
+    summaryParts.push(`${titleLosses}x Title Contender`);
+  }
+
+  if (summaryParts.length > 0) {
+    return summaryParts.join(", ");
+  }
+
+  return "None";
+}
+
+// Global exposure for inline HTML event handlers
+window.getFighterBeltBadgesHtml = getFighterBeltBadgesHtml;
+window.getFightTitleIconHtml = getFightTitleIconHtml;
+window.getTitleHistorySummary = getTitleHistorySummary;
