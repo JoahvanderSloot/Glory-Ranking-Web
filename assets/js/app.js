@@ -411,17 +411,24 @@ function renderFighterProfile(f) {
     const statsElem = document.getElementById("fighterStats");
     if (statsElem) {
         statsElem.innerHTML = `
-        <div class="stats-grid">
-            <div><strong>Weight:</strong> ${f.weightClass}</div>
-            <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
-            <div><strong>Record:</strong> ${f.draws > 0
-                    ? `${f.wins}-${f.losses}-${f.draws}`
-                    : `${f.wins}-${f.losses}`
-                }</div>
-            <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
-            <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
-            <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
-            <div><strong>Title History:</strong> ${titleSummary}</div>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+            <!-- Top stats spread across 1 line, but wrap cleanly if screen becomes too narrow -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%; gap: 8px 16px;">
+                <div><strong>Weight:</strong> ${f.weightClass}</div>
+                <div><strong>Gender:</strong> ${f.gender === "female" ? "Female" : "Male"}</div>
+                <div><strong>Record:</strong> ${f.draws > 0
+                        ? `${f.wins}-${f.losses}-${f.draws}`
+                        : `${f.wins}-${f.losses}`
+                    }</div>
+                <div><strong>Elo:</strong> ${showKOBonus ? f.eloKO : f.elo}</div>
+                <div><strong>Peak Elo:</strong> ${showKOBonus ? f.peakEloKO : f.peakElo}</div>
+                <div><strong>Status:</strong> ${f.retired ? "Retired" : "Active"}</div>
+            </div>
+            
+            <!-- Title History always stays below all main stats -->
+            <div style="width: 100%;">
+                <strong>Title History:</strong> ${titleSummary}
+            </div>
         </div>
         `;
     }
@@ -431,7 +438,6 @@ function renderFighterProfile(f) {
 }
 
 function renderFightHistory(fights) {
-    const isMobile = window.innerWidth <= 768;
     const historyContainer = document.getElementById("fightHistory");
     if (!historyContainer) return;
 
@@ -451,16 +457,6 @@ function renderFightHistory(fights) {
 
         // Pass fight, fighterId, and global weightClasses array
         const titleBoutIcon = getFightTitleIconHtml(fight, fighterId, weightClasses);
-
-        if (isMobile) {
-            return `<div class="fight-row">
-                <span>${fight.date}</span>
-                <span class="clickable" onclick="openFighter(${fight.opponentId})">
-                    ${titleBoutIcon}
-                    <span style="color:${wlColor}; font-weight:bold; margin-right:15px;">${wlSymbol}</span>${opp ? opp.name : "Unknown"}
-                </span>
-            </div>`;
-        }
 
         return `<div class="fight-row">
             <span>${fight.date}</span>
@@ -1218,25 +1214,50 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
   if (!fighter) return "None";
 
   let summaryParts = [];
-  let titleLosses = 0;
 
-  // 1. Collect Reign Summaries & Defenses
+  // 1. Collect & Stack Reign Summaries per Weight Class and Belt Type
   weightClassesData.forEach((wc) => {
     if (typeof wc === "string") return;
 
     const fighterReigns = (wc.reigns || []).filter((r) => r.fighterId === fighter.id);
 
-    fighterReigns.forEach((reign) => {
-      const titleName = reign.type === "interim" ? `Interim ${wc.name}` : wc.name;
-      const defensesText = reign.defenses > 0 
-        ? ` (${reign.defenses} ${reign.defenses === 1 ? "defense" : "defenses"})` 
+    ["undisputed", "interim"].forEach((type) => {
+      const typeReigns = fighterReigns.filter((r) => r.type === type);
+      if (typeReigns.length === 0) return;
+
+      const reignCount = typeReigns.length;
+      // Combine defenses across all runs for this belt
+      const totalDefenses = typeReigns.reduce((sum, r) => sum + (r.defenses || 0), 0);
+
+      const isCurrentChamp =
+        (type === "undisputed" && wc.currentChampId === fighter.id) ||
+        (type === "interim" && wc.currentInterimChampId === fighter.id);
+
+      const baseTitleName = type === "interim" ? `Interim ${wc.name}` : wc.name;
+
+      // Construct title text based on status & run count
+      let champTitle = "";
+      if (isCurrentChamp) {
+        champTitle = reignCount > 1 
+          ? `${reignCount}-time ${baseTitleName} Champion` 
+          : `${baseTitleName} Champion`;
+      } else {
+        champTitle = reignCount > 1 
+          ? `Former ${reignCount}-time ${baseTitleName} Champion` 
+          : `Former ${baseTitleName} Champion`;
+      }
+
+      const defensesText = totalDefenses > 0 
+        ? ` (${totalDefenses} ${totalDefenses === 1 ? "defense" : "defenses"})` 
         : "";
 
-      summaryParts.push(`${titleName} Champion${defensesText}`);
+      summaryParts.push(`${champTitle}${defensesText}`);
     });
   });
 
-  // 2. Count Title Losses / Contender Attempts
+  // 2. Count Contender Bouts (only title fight losses where they were NOT defending champ)
+  let contenderLosses = 0;
+
   (fighter.fights || []).forEach((f) => {
     let isTitle =
       f.isTitle ||
@@ -1244,28 +1265,35 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
       f.type === "undisputed" ||
       f.type === "interim";
 
-    // Also verify against weightClasses titleBouts if not flagged on fight directly
-    if (!isTitle && f.opponentId && weightClassesData.length > 0) {
-      weightClassesData.forEach((wc) => {
-        if (typeof wc === "string") return;
-        const bouts = wc.titleBouts || wc.titleFights || [];
-        const match = bouts.find((b) => {
-          if (b.date !== f.date) return false;
-          const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
-          return boutFighters.includes(fighter.id) && boutFighters.includes(f.opponentId);
-        });
-        if (match) isTitle = true;
-      });
-    }
+    let wasDefendingChamp = false;
 
-    if (isTitle && f.result === "loss") {
-      titleLosses++;
+    // Cross-reference with weightClasses titleBouts to verify if they were champion
+    weightClassesData.forEach((wc) => {
+      if (typeof wc === "string") return;
+      const bouts = wc.titleBouts || wc.titleFights || [];
+      const match = bouts.find((b) => {
+        if (b.date !== f.date) return false;
+        const boutFighters = [b.championId, b.challengerId, b.winnerId, b.loserId].filter(Boolean);
+        return boutFighters.includes(fighter.id) && boutFighters.includes(f.opponentId);
+      });
+
+      if (match) {
+        isTitle = true;
+        // Check if they entered the bout as defending champion
+        if (match.championId === fighter.id) {
+          wasDefendingChamp = true;
+        }
+      }
+    });
+
+    // Only count if it was a title bout loss AND they weren't defending champion
+    if (isTitle && f.result === "loss" && !wasDefendingChamp) {
+      contenderLosses++;
     }
   });
 
-  // 3. Append Contender Tag if they have title fight losses
-  if (titleLosses > 0) {
-    summaryParts.push(`${titleLosses}x Title Contender`);
+  if (contenderLosses > 0) {
+    summaryParts.push(`${contenderLosses}x Title Contender`);
   }
 
   if (summaryParts.length > 0) {
@@ -1344,19 +1372,27 @@ function updateWinnerDropdown() {
 window.searchFightFighter = searchFightFighter;
 
 function calculateEloChange(elo1, elo2, result, method, isKOToggle = false) {
-    const K = 32; // Standard Elo K-factor
-    const expectedScore = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+    const k = 32;
+    
+    // 1. Calculate expected score for Fighter 1
+    const expectedF1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
 
-    let actualScore = 0.5; // Default for draw
-    if (result === "win") actualScore = 1;
-    if (result === "loss") actualScore = 0;
+    // 2. Determine actual score
+    let scoreF1 = 0.5; // Default for draw
+    if (result === "win") scoreF1 = 1;
+    if (result === "loss") scoreF1 = 0;
 
-    let change = K * (actualScore - expectedScore);
+    // 3. Halve the calculation multiplier if it's a draw
+    const drawMultiplier = (result === "draw") ? 0.5 : 1;
 
-    // Apply KO multiplier if calculating for the KO bonus toggle
-    if (isKOToggle && method === "KO") {
-        change *= 1.5; // 50% bonus Elo change for KO finishes
+    // 4. Calculate and round normal Elo change
+    const eloChangeNormalF1 = Math.round(k * drawMultiplier * (scoreF1 - expectedF1));
+
+    // 5. If calculating KO Elo, apply the 1.5x multiplier to the rounded normal change
+    if (isKOToggle) {
+        const koMultiplier = (method === "KO") ? 1.5 : 1;
+        return Math.round(eloChangeNormalF1 * koMultiplier);
     }
 
-    return Math.round(change);
+    return eloChangeNormalF1;
 }

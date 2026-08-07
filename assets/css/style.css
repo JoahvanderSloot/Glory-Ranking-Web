@@ -1538,3 +1538,216 @@ label[for="predictionSearch2"] {
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* ==========================================================
+   1. PREDICTIONS PAGE: STACK HEADERS & DROPDOWNS (NO OVERLAP)
+   ========================================================== */
+@media (max-width: 900px) {
+    /* Stack top fighter names (e.g. Rico Verhoeven / Fighter 2) vertically */
+    .prediction-header,
+    #predictions .prediction-header,
+    .prediction-table-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        padding: 12px 14px !important;
+        background: #1c1c1c !important;
+        border-radius: 8px !important;
+        border: 1px solid #333 !important;
+        margin-bottom: 14px !important;
+    }
+
+    .prediction-header span,
+    .prediction-header div {
+        display: block !important;
+        width: 100% !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #ffd700 !important; /* Gold */
+        text-align: left !important;
+    }
+
+    /* Stack each prediction category into a distinct card */
+    .prediction-row,
+    #predictions .prediction-row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        background: #141414 !important;
+        padding: 14px !important;
+        border-radius: 8px !important;
+        border: 1px solid #2a2a2a !important;
+        margin-bottom: 12px !important;
+        gap: 10px !important;
+    }
+
+    /* Category Title (e.g. Stance, Movement) */
+    .prediction-row > label:first-child,
+    .prediction-row > span:first-child {
+        font-size: 16px !important;
+        color: #ffd700 !important;
+        font-weight: bold !important;
+        border-bottom: 1px solid #333 !important;
+        padding-bottom: 6px !important;
+    }
+
+    /* Dropdown controls full width */
+    .prediction-side-control,
+    .prediction-row select,
+    .prediction-row > div {
+        width: 100% !important;
+    }
+
+    /* Clear explicit labels above each respective dropdown */
+    .prediction-row select:nth-of-type(1)::before,
+    .prediction-row > div:nth-of-type(1)::before,
+    .prediction-side-control:nth-of-type(1)::before {
+        content: "FIGHTER 1" !important;
+        display: block !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        color: #f5d36b !important;
+        margin-bottom: 4px !important;
+    }
+
+    .prediction-row select:nth-of-type(2)::before,
+    .prediction-row > div:nth-of-type(2)::before,
+    .prediction-side-control:nth-of-type(2)::before {
+        content: "FIGHTER 2" !important;
+        display: block !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        color: #f5d36b !important;
+        margin-top: 6px !important;
+        margin-bottom: 4px !important;
+    }
+}
+
+
+/* ==========================================================
+   2. FIGHT HISTORY: STACKED CARDS (NO TRUNCATION, KO/DEC & COLORS)
+   ========================================================== */
+@media (max-width: 768px) {
+    /* Each fight record becomes its own spacious card */
+    .fight-row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        padding: 12px 12px !important;
+        background: #141414 !important;
+        border: 1px solid #282828 !important;
+        border-radius: 8px !important;
+        margin-bottom: 8px !important;
+    }
+
+    /* Allow full opponent name display — NO MORE 'A...' TRUNCATION */
+    .fight-row span:nth-child(3),
+    .fight-row .opponent,
+    .fight-row span.opponent-name {
+        display: block !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        color: #ffd700 !important; /* Gold */
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: break-word !important;
+        width: 100% !important;
+    }
+
+    /* Bright W / L Result Colors */
+    .fight-row .win,
+    .fight-row span.win,
+    .fight-row.win span:nth-child(2),
+    .fight-row span:nth-child(2).win {
+        color: #00e676 !important; /* Bright Green */
+        font-weight: 900 !important;
+        font-size: 15px !important;
+        display: inline-block !important;
+    }
+
+    .fight-row .loss,
+    .fight-row span.loss,
+    .fight-row.loss span:nth-child(2),
+    .fight-row span:nth-child(2).loss {
+        color: #ff5252 !important; /* Bright Red */
+        font-weight: 900 !important;
+        font-size: 15px !important;
+        display: inline-block !important;
+    }
+
+    /* Date display */
+    .fight-row span:nth-child(1) {
+        color: #888888 !important;
+        font-size: 12px !important;
+        display: inline-block !important;
+        margin-right: 8px !important;
+    }
+
+    /* Method Tag (KO, DEC, TKO) styled in a gold box */
+    .fight-row span:nth-child(4),
+    .fight-row .method {
+        display: inline-block !important;
+        color: #ffd700 !important;
+        font-size: 11px !important;
+        font-weight: bold !important;
+        background: rgba(255, 215, 0, 0.1) !important;
+        border: 1px solid rgba(255, 215, 0, 0.4) !important;
+        padding: 2px 8px !important;
+        border-radius: 4px !important;
+        margin-top: 4px !important;
+    }
+
+    /* Optional Event / Elo info */
+    .fight-row span:nth-child(5) {
+        display: inline-block !important;
+        color: #666666 !important;
+        font-size: 11px !important;
+        margin-left: 6px !important;
+    }
+    
+}
+
+/* ==========================================================
+   FORCE TOP PROFILE STATS INTO 1 SINGLE COLUMN ON MOBILE
+   ========================================================== */
+@media (max-width: 768px) {
+    /* Target top profile container & force single-column flex */
+    #fighterStats,
+    .fighter-stats,
+    .stats-container,
+    .stats-grid,
+    div[class*="stats"] {
+        display: flex !important;
+        flex-direction: column !important;
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+
+    /* Force any internal 2-column flex rows to stack vertically */
+    #fighterStats > div,
+    .stats-row,
+    .stats-grid > div,
+    div[class*="stat-row"] {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+
+    /* Force every individual stat pair (e.g. Weight: Heavyweight) to take 100% width */
+    #fighterStats p,
+    #fighterStats div,
+    .stat-item,
+    .stats-row > div,
+    .stats-row > span {
+        width: 100% !important;
+        display: block !important;
+        flex: 0 0 100% !important;
+        box-sizing: border-box !important;
+    }
+}
