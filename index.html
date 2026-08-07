@@ -556,19 +556,23 @@
 </div>
 
        <!-- Admin Page -->
-  <div id="admin" class="page">
-    <div class="container">
-      <h2>Admin Panel</h2>
+<div id="admin" class="page">
+  <div class="container">
+    <h2>Admin Panel</h2>
 
-      <!-- Login -->
-      <div class="card" id="loginCard">
-        <p>You must log in to access admin features.</p>
-        <br>
-        <button onclick="Login()">Login with whitelisted username</button>
+    <!-- Login Card -->
+    <div class="card" id="loginCard">
+      <p>Authenticate with GitHub to access administrative tools.</p>
+      <br>
+      <button onclick="Login()">Sign in with GitHub</button>
+    </div>
+
+    <!-- Admin Content -->
+    <div id="adminContent" style="display:none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3>Admin Dashboard</h3>
+        <button onclick="Logout()" style="background: #e74c3c; color: white;">Logout</button>
       </div>
-
-      <!-- Admin Content -->
-      <div id="adminContent" style="display:none;">
 
         <!-- Add Fighter -->
         <div class="card">

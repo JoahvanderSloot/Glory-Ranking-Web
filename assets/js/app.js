@@ -87,38 +87,66 @@ window.showPage = showPage;
 // ========================
 // ADMIN LOGIN
 // ========================
-const whitelist = ["Joah", "VDS"];
+import { db, auth, githubProvider } from "./firebase.js";
+import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// ========================
+// ADMIN LOGIN (GitHub OAuth)
+// ========================
+// Whitelisted GitHub handles (stored in lowercase for exact matching)
+const whitelist = ["joah", "vds"]; 
+
+let currentUser = null;
+
+// Automatically sync UI whenever auth state changes
+onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    syncAdminPanelVisibility();
+});
+
 function syncAdminPanelVisibility() {
     const loginCard = document.getElementById("loginCard");
     const adminContent = document.getElementById("adminContent");
     if (!loginCard || !adminContent) return;
 
-    const user = sessionStorage.getItem("adminUser");
-    const isLoggedIn = Boolean(user && whitelist.includes(user));
+    // Retrieve GitHub username from Firebase auth profile
+    const githubHandle = currentUser?.reloadUserInfo?.screenName?.toLowerCase() || "";
+    const isLoggedInAndWhitelisted = Boolean(currentUser && whitelist.includes(githubHandle));
 
-    loginCard.style.display = isLoggedIn ? "none" : "block";
-    adminContent.style.display = isLoggedIn ? "block" : "none";
+    loginCard.style.display = isLoggedInAndWhitelisted ? "none" : "block";
+    adminContent.style.display = isLoggedInAndWhitelisted ? "block" : "none";
 }
 
-function Login() {
-    const username = prompt("Enter username:");
-    if (!username) return;
-    if (whitelist.includes(username)) grantAccess(username);
-    else alert("Access denied.");
+async function Login() {
+    try {
+        const result = await signInWithPopup(auth, githubProvider);
+        const githubHandle = result.user?.reloadUserInfo?.screenName?.toLowerCase() || "";
+
+        if (!whitelist.includes(githubHandle)) {
+            alert(`Access denied: @${githubHandle} is not on the admin whitelist.`);
+            await signOut(auth);
+        } else {
+            alert(`Logged in successfully as @${githubHandle}!`);
+        }
+    } catch (error) {
+        console.error("GitHub Login failed:", error);
+        alert("Login failed: " + error.message);
+    }
 }
-function grantAccess(username) {
-    sessionStorage.setItem("adminUser", username);
+
+async function Logout() {
+    await signOut(auth);
     syncAdminPanelVisibility();
 }
 
 window.syncAdminPanelVisibility = syncAdminPanelVisibility;
-window.grantAccess = grantAccess;
+window.Login = Login;
+window.Logout = Logout;
 
 // ========================
 // LOAD DATA
 // ========================
-import { db } from "./firebase.js";
-import { getDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 async function loadData() {
     try {
