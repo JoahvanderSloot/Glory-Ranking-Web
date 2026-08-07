@@ -643,25 +643,6 @@ function setupFightSearch(inputId, resultId) {
 setupFightSearch("fightSearch1", "fightResults1");
 setupFightSearch("fightSearch2", "fightResults2");
 
-function selectFightFighter(inputId, id, name) {
-    name = decodeURIComponent(name);
-    if (inputId === "fightSearch1") {
-        fightSelection.f1 = id;
-        document.getElementById("fightSearch1").value = name;
-        document.getElementById("fightResults1").innerHTML = "";
-    } else {
-        fightSelection.f2 = id;
-        document.getElementById("fightSearch2").value = name;
-        document.getElementById("fightResults2").innerHTML = "";
-    }
-    document.getElementById("fightSearch1").addEventListener("input", () => {
-        if (!document.getElementById("fightSearch1").value) fightSelection.f1 = null;
-    });
-    document.getElementById("fightSearch2").addEventListener("input", () => {
-        if (!document.getElementById("fightSearch2").value) fightSelection.f2 = null;
-    });
-    updateFightWinnerOptions();
-}
 function updateFightWinnerOptions() {
     const sel = document.getElementById("fightWinner");
     sel.innerHTML = '<option value="draw">Draw</option>';
