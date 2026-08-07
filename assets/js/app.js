@@ -108,14 +108,26 @@ onAuthStateChanged(auth, (user) => {
 function syncAdminPanelVisibility() {
     const loginCard = document.getElementById("loginCard");
     const adminContent = document.getElementById("adminContent");
+    const userInfo = document.getElementById("userInfo"); // Get the header element
+
     if (!loginCard || !adminContent) return;
 
-    // Retrieve GitHub username from Firebase auth profile
-    const githubHandle = currentUser?.reloadUserInfo?.screenName?.toLowerCase() || "";
-    const isLoggedInAndWhitelisted = Boolean(currentUser && whitelist.includes(githubHandle));
+    // Get the GitHub handle (original casing for display, lowercase for checking whitelist)
+    const githubHandle = currentUser?.reloadUserInfo?.screenName || "";
+    const isLoggedInAndWhitelisted = Boolean(currentUser && whitelist.includes(githubHandle.toLowerCase()));
 
-    loginCard.style.display = isLoggedInAndWhitelisted ? "none" : "block";
-    adminContent.style.display = isLoggedInAndWhitelisted ? "block" : "none";
+    if (isLoggedInAndWhitelisted) {
+        loginCard.style.display = "none";
+        adminContent.style.display = "block";
+        
+        // Update the header text dynamically
+        if (userInfo) {
+            userInfo.textContent = `Logged in as @${githubHandle}`;
+        }
+    } else {
+        loginCard.style.display = "block";
+        adminContent.style.display = "none";
+    }
 }
 
 async function Login() {
