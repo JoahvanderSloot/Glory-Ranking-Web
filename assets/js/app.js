@@ -2322,30 +2322,30 @@ function getTitleHistorySummary(
                 [];
 
             titleBouts.forEach(b => {
-    const isTitleTournament =
-        b.isTitleTournament === true ||
-        b.titleTournament === true ||
-        b.isTitleTournamentFinal === true ||
-        b.tournamentType === "title";
+                const isTitleTournament =
+                    b.isTitleTournament === true ||
+                    b.titleTournament === true ||
+                    b.isTitleTournamentFinal === true ||
+                    b.tournamentType === "title";
 
-    if (!isTitleTournament) {
-        return;
-    }
+                if (!isTitleTournament) {
+                    return;
+                }
 
-    const tournamentKey =
-        b.tournamentId !== undefined &&
-        b.tournamentId !== null
-            ? `id:${b.tournamentId}`
-            : `date:${normalizeDateStr(b.date)}`;
+                const tournamentKey =
+                    b.tournamentId !== undefined &&
+                        b.tournamentId !== null
+                        ? `id:${b.tournamentId}`
+                        : `date:${normalizeDateStr(b.date)}`;
 
-    titleTournaments.push({
-        key: tournamentKey,
-        weightClass: wc.name,
-        date: normalizeDateStr(b.date),
-        tournamentId: b.tournamentId ?? null,
-        titleBout: b
-    });
-});
+                titleTournaments.push({
+                    key: tournamentKey,
+                    weightClass: wc.name,
+                    date: normalizeDateStr(b.date),
+                    tournamentId: b.tournamentId ?? null,
+                    titleBout: b
+                });
+            });
 
             divisionChampionDetails[wc.name] =
                 divisionChampionDetails[wc.name] || [];
@@ -2362,7 +2362,93 @@ function getTitleHistorySummary(
     // 2. IDENTIFY TITLE TOURNAMENTS
     // ==========================================================
 
+
+    const titleTournamentCountByWC = {};
+
+    // 🔹 ADD THIS LINE: Filter duplicate tournaments by key
+
+
+    
     const titleTournaments = [];
+
+const uniqueTitleTournaments = Array.from(
+    new Map(titleTournaments.map(t => [t.key, t])).values()
+);
+
+uniqueTitleTournaments.forEach(tournament => {
+
+        /*
+         * The winner of the title tournament is NOT a
+         * "Title Tournament Participant" in the career text.
+         *
+         * They won the tournament, so their achievement is
+         * represented by the championship itself.
+         */
+        const tournamentWinnerId =
+            tournament.titleBout?.winnerId !== undefined &&
+                tournament.titleBout?.winnerId !== null
+                ? String(tournament.titleBout.winnerId)
+                : null;
+
+        /*
+         * If this fighter is the tournament winner, stop here.
+         */
+        if (
+            tournamentWinnerId &&
+            fid === tournamentWinnerId
+        ) {
+            return;
+        }
+
+        const participated =
+            (fighter.fights || []).some(fight => {
+
+                /*
+                 * Preferred:
+                 * tournamentId directly identifies the tournament.
+                 */
+                if (
+                    tournament.tournamentId !== null &&
+                    tournament.tournamentId !== undefined &&
+                    fight.tournamentId !== undefined &&
+                    fight.tournamentId !== null
+                ) {
+                    return (
+                        String(fight.tournamentId) ===
+                        String(tournament.tournamentId)
+                    );
+                }
+
+                /*
+                 * Legacy one-night tournament detection.
+                 */
+                const fightDate =
+                    normalizeDateStr(fight.date);
+
+                return (
+                    fightDate === tournament.date &&
+                    (
+                        fight.isTournament === true ||
+                        fight.tournament === true ||
+                        fight.isTitleTournament === true
+                    )
+                );
+            });
+
+        if (!participated) {
+            return;
+        }
+
+        const wc =
+            tournament.weightClass;
+
+        titleTournamentCountByWC[wc] =
+            (
+                titleTournamentCountByWC[wc] ||
+                0
+            ) + 1;
+    });
+
 
     weightClassesData.forEach(wc => {
 
@@ -2376,24 +2462,24 @@ function getTitleHistorySummary(
             [];
 
         titleBouts.forEach(titleBout => {
-
-            const tournamentInfo =
-                getTitleTournamentParticipants(
-                    wc,
-                    titleBout
-                );
+            const tournamentInfo = getTitleTournamentParticipants(wc, titleBout);
 
             if (!tournamentInfo) {
                 return;
             }
 
-           titleTournaments.push({
-    key: tournamentKey,
-    weightClass: wc.name,
-    date: normalizeDateStr(b.date),
-    tournamentId: b.tournamentId ?? null,
-    titleBout: b
-});
+            // Define tournamentKey here
+            const tournamentKey = titleBout.tournamentId !== undefined && titleBout.tournamentId !== null
+                ? `id:${titleBout.tournamentId}`
+                : `date:${normalizeDateStr(titleBout.date)}`;
+
+            titleTournaments.push({
+                key: tournamentKey,
+                weightClass: wc.name,
+                date: normalizeDateStr(titleBout.date), // Use 'titleBout', not 'b'
+                tournamentId: titleBout.tournamentId ?? null,
+                titleBout: titleBout
+            });
         });
     });
 
@@ -2404,281 +2490,205 @@ function getTitleHistorySummary(
     /*
      * This is deliberately separate from normal title contenders.
      */
-   // ==========================================================
-// 9. TITLE TOURNAMENT PARTICIPATION
-// ==========================================================
+    // ==========================================================
+    // 9. TITLE TOURNAMENT PARTICIPATION
+    // ==========================================================
 
-const titleTournamentCountByWC = {};
+    Object.entries(
+        titleTournamentCountByWC
+    ).forEach(([wc, count]) => {
 
-uniqueTitleTournaments.forEach(tournament => {
-
-    /*
-     * The winner of the title tournament is NOT a
-     * "Title Tournament Participant" in the career text.
-     *
-     * They won the tournament, so their achievement is
-     * represented by the championship itself.
-     */
-    const tournamentWinnerId =
-        tournament.titleBout?.winnerId !== undefined &&
-        tournament.titleBout?.winnerId !== null
-            ? String(tournament.titleBout.winnerId)
-            : null;
-
-    /*
-     * If this fighter is the tournament winner, stop here.
-     */
-    if (
-        tournamentWinnerId &&
-        fid === tournamentWinnerId
-    ) {
-        return;
-    }
-
-    const participated =
-        (fighter.fights || []).some(fight => {
-
-            /*
-             * Preferred:
-             * tournamentId directly identifies the tournament.
-             */
-            if (
-                tournament.tournamentId !== null &&
-                tournament.tournamentId !== undefined &&
-                fight.tournamentId !== undefined &&
-                fight.tournamentId !== null
-            ) {
-                return (
-                    String(fight.tournamentId) ===
-                    String(tournament.tournamentId)
-                );
-            }
-
-            /*
-             * Legacy one-night tournament detection.
-             */
-            const fightDate =
-                normalizeDateStr(fight.date);
-
-            return (
-                fightDate === tournament.date &&
-                (
-                    fight.isTournament === true ||
-                    fight.tournament === true ||
-                    fight.isTitleTournament === true
-                )
-            );
-        });
-
-    if (!participated) {
-        return;
-    }
-
-    const wc =
-        tournament.weightClass;
-
-    titleTournamentCountByWC[wc] =
-        (
-            titleTournamentCountByWC[wc] ||
-            0
-        ) + 1;
-});
-
-Object.entries(
-    titleTournamentCountByWC
-).forEach(([wc, count]) => {
-
-    detailParts.push(
-        `${count}x ${wc} Title Tournament Participant`
-    );
-});
+        detailParts.push(
+            `${count}x ${wc} Title Tournament Participant`
+        );
+    });
 
     // ==========================================================
-// 4. NORMAL + INTERIM TITLE CONTENDERS
-// ==========================================================
+    // 4. NORMAL + INTERIM TITLE CONTENDERS
+    // ==========================================================
 
-// ==========================================================
-// 10. TITLE CONTENDERS
-// ==========================================================
+    // ==========================================================
+    // 10. TITLE CONTENDERS
+    // ==========================================================
 
-const titleContenderCountByWC = {};
-const interimContenderCountByWC = {};
+    const titleContenderCountByWC = {};
+    const interimContenderCountByWC = {};
 
-(fighter.fights || []).forEach(fight => {
+    (fighter.fights || []).forEach(fight => {
 
-    const titleInfo = isTitleFightForFighter(
-        fight,
-        fid,
-        weightClassesData,
-        fighter
-    );
+        const titleInfo = isTitleFightForFighter(
+            fight,
+            fid,
+            weightClassesData,
+            fighter
+        );
 
-    if (!titleInfo.isTitle) {
-        return;
-    }
-
-    const titleBout = titleInfo.titleBout;
-
-    /*
-     * We need the EXACT title-bout record.
-     *
-     * If we don't have it, don't guess.
-     */
-    if (!titleBout) {
-        return;
-    }
-
-    /*
-     * Fighter must have LOST.
-     */
-    if (fight.result !== "loss") {
-        return;
-    }
-
-    /*
-     * Fighter must NOT be the winner.
-     */
-    if (
-        titleBout.winnerId !== undefined &&
-        titleBout.winnerId !== null &&
-        String(titleBout.winnerId) === fid
-    ) {
-        return;
-    }
-
-    /*
-     * Fighter MUST be the challenger.
-     *
-     * This is the important part.
-     *
-     * It prevents random losses from being counted just because
-     * they happen on the same date as a title fight.
-     */
-    if (
-        titleBout.challengerId === undefined ||
-        titleBout.challengerId === null ||
-        String(titleBout.challengerId) !== fid
-    ) {
-        return;
-    }
-
-    /*
-     * If they were already champion in this exact bout,
-     * they are defending, not a contender.
-     */
-    if (titleInfo.wasDefendingChamp) {
-        return;
-    }
-
-    const wcName =
-        titleInfo.weightClass;
-
-    if (!wcName) {
-        return;
-    }
-
-    /*
-     * ----------------------------------------------------------
-     * TITLE TOURNAMENT FINAL?
-     * ----------------------------------------------------------
-     *
-     * Tournament finalists are counted as tournament
-     * participants instead of normal title contenders.
-     */
-    let isTitleTournamentFinal = false;
-
-    titleTournaments.forEach(tournament => {
-
-        if (
-            tournament.weightClass !== wcName
-        ) {
+        if (!titleInfo.isTitle) {
             return;
         }
 
-        if (
-            tournament.date !==
-            normalizeDateStr(fight.date)
-        ) {
-            return;
-        }
+        const titleBout = titleInfo.titleBout;
 
-        const tournamentBout =
-            tournament.titleBout;
-
-        if (!tournamentBout) {
+        /*
+         * We need the EXACT title-bout record.
+         *
+         * If we don't have it, don't guess.
+         */
+        if (!titleBout) {
             return;
         }
 
         /*
-         * Verify that this is the SAME title bout.
+         * Fighter must have LOST.
          */
-        const sameWinner =
-            String(tournamentBout.winnerId) ===
-            String(titleBout.winnerId);
+        if (fight.result !== "loss") {
+            return;
+        }
 
-        const sameChallenger =
-            String(tournamentBout.challengerId) ===
-            String(titleBout.challengerId);
-
+        /*
+         * Fighter must NOT be the winner.
+         */
         if (
-            sameWinner &&
-            sameChallenger
+            titleBout.winnerId !== undefined &&
+            titleBout.winnerId !== null &&
+            String(titleBout.winnerId) === fid
         ) {
-            isTitleTournamentFinal = true;
+            return;
+        }
+
+        /*
+         * Fighter MUST be the challenger.
+         *
+         * This is the important part.
+         *
+         * It prevents random losses from being counted just because
+         * they happen on the same date as a title fight.
+         */
+        if (
+            titleBout.challengerId === undefined ||
+            titleBout.challengerId === null ||
+            String(titleBout.challengerId) !== fid
+        ) {
+            return;
+        }
+
+        /*
+         * If they were already champion in this exact bout,
+         * they are defending, not a contender.
+         */
+        if (titleInfo.wasDefendingChamp) {
+            return;
+        }
+
+        const wcName =
+            titleInfo.weightClass;
+
+        if (!wcName) {
+            return;
+        }
+
+        /*
+         * ----------------------------------------------------------
+         * TITLE TOURNAMENT FINAL?
+         * ----------------------------------------------------------
+         *
+         * Tournament finalists are counted as tournament
+         * participants instead of normal title contenders.
+         */
+        let isTitleTournamentFinal = false;
+
+        titleTournaments.forEach(tournament => {
+
+            if (
+                tournament.weightClass !== wcName
+            ) {
+                return;
+            }
+
+            if (
+                tournament.date !==
+                normalizeDateStr(fight.date)
+            ) {
+                return;
+            }
+
+            const tournamentBout =
+                tournament.titleBout;
+
+            if (!tournamentBout) {
+                return;
+            }
+
+            /*
+             * Verify that this is the SAME title bout.
+             */
+            const sameWinner =
+                String(tournamentBout.winnerId) ===
+                String(titleBout.winnerId);
+
+            const sameChallenger =
+                String(tournamentBout.challengerId) ===
+                String(titleBout.challengerId);
+
+            if (
+                sameWinner &&
+                sameChallenger
+            ) {
+                isTitleTournamentFinal = true;
+            }
+        });
+
+        /*
+         * Tournament final:
+         * do NOT give normal Title Contender.
+         */
+        if (isTitleTournamentFinal) {
+            return;
+        }
+
+        /*
+         * Normal title contender.
+         */
+        if (
+            titleInfo.type === "interim"
+        ) {
+            interimContenderCountByWC[wcName] =
+                (
+                    interimContenderCountByWC[wcName] ||
+                    0
+                ) + 1;
+        } else {
+            titleContenderCountByWC[wcName] =
+                (
+                    titleContenderCountByWC[wcName] ||
+                    0
+                ) + 1;
         }
     });
 
     /*
-     * Tournament final:
-     * do NOT give normal Title Contender.
+     * IMPORTANT:
+     * Do NOT check championWeightClasses here.
+     *
+     * A former champion can later become a contender again.
      */
-    if (isTitleTournamentFinal) {
-        return;
-    }
+    Object.entries(
+        titleContenderCountByWC
+    ).forEach(([wc, count]) => {
 
-    /*
-     * Normal title contender.
-     */
-    if (
-        titleInfo.type === "interim"
-    ) {
-        interimContenderCountByWC[wcName] =
-            (
-                interimContenderCountByWC[wcName] ||
-                0
-            ) + 1;
-    } else {
-        titleContenderCountByWC[wcName] =
-            (
-                titleContenderCountByWC[wcName] ||
-                0
-            ) + 1;
-    }
-});
+        detailParts.push(
+            `${count}x ${wc} Title Contender`
+        );
+    });
 
-/*
- * IMPORTANT:
- * Do NOT check championWeightClasses here.
- *
- * A former champion can later become a contender again.
- */
-Object.entries(
-    titleContenderCountByWC
-).forEach(([wc, count]) => {
+    Object.entries(
+        interimContenderCountByWC
+    ).forEach(([wc, count]) => {
 
-    detailParts.push(
-        `${count}x ${wc} Title Contender`
-    );
-});
-
-Object.entries(
-    interimContenderCountByWC
-).forEach(([wc, count]) => {
-
-    detailParts.push(
-        `${count}x Interim ${wc} Title Contender`
-    );
-});
+        detailParts.push(
+            `${count}x Interim ${wc} Title Contender`
+        );
+    });
 
     // ==========================================================
     // 5. CAREER-LEVEL MULTI-DIVISION CHAMPIONSHIP
@@ -2946,16 +2956,6 @@ Object.entries(
     Object.entries(
         titleContenderCountByWC
     ).forEach(([wc, count]) => {
-
-        /*
-         * If they are a champion in the same division,
-         * they don't also need a contender label there.
-         */
-        if (
-            championWeightClasses.has(wc)
-        ) {
-            return;
-        }
 
         detailParts.push(
             `${count}x ${wc} Title Contender`
