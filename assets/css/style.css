@@ -1762,3 +1762,20 @@ label[for="predictionSearch2"] {
         box-sizing: border-box !important;
     }
 }
+
+/* ==========================================================
+   MOBILE FIGHT HISTORY: TITLE ICON TO THE RIGHT OF WIN/LOSS
+   ========================================================== */
+@media (max-width: 768px) {
+    .fight-row .bout-title-icon {
+        position: absolute;
+        left: 13%;
+        right: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 16px;
+        width: auto;
+        margin-left: 6px;
+        margin-right: 0;
+    }
+}

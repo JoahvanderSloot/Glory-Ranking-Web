@@ -1380,25 +1380,99 @@ function renderFighterProfile(f) {
     }
 
     // Dropdown formatting for Title History
+    // ==========================================================
+    // TITLE HISTORY DISPLAY
+    // ==========================================================
+
     let titleHistoryHtml = "";
-    if (titleSummaryArray.length === 1) {
-        titleHistoryHtml = `<span>${titleSummaryArray[0]}</span>`;
+
+    const hasTitleHistory =
+        titleSummaryArray.length > 0 &&
+        titleSummaryArray[0] !== "None";
+
+    if (!hasTitleHistory) {
+        titleHistoryHtml = `
+        <span style="color: #aaa;">None</span>
+    `;
     } else {
         const highestRank = titleSummaryArray[0];
-        const restList = titleSummaryArray.slice(1).map(item => `<li style="margin-bottom: 4px;">${item}</li>`).join("");
+        const additionalItems = titleSummaryArray.slice(1);
 
-        titleHistoryHtml = `
+        if (additionalItems.length === 0) {
+            titleHistoryHtml = `
+            <span style="color: #ffeb3b;">
+                ${highestRank}
+            </span>
+        `;
+        } else {
+            const restList = additionalItems
+                .map(item => `
+                <li style="
+                    margin-bottom: 4px;
+                    color: #f3eca8;
+                ">
+                    ${item}
+                </li>
+            `)
+                .join("");
+
+            titleHistoryHtml = `
             <details class="title-history-details">
-                <summary style="cursor: pointer; font-weight: 500; color: #ffeb3b; list-style: none; display: flex; align-items: center; gap: 8px;">
-                    ${highestRank} 
-                    <span style="font-size: 0.8em; color: #aaa;">(▼ Click for more)</span>
+                <summary
+                    style="
+                        cursor: pointer;
+                        font-weight: 500;
+                        color: #ffeb3b;
+                        list-style: none;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    "
+                >
+                    <span style="color: #ffeb3b;">
+                        ${highestRank}
+                    </span>
+
+                    <span
+                        class="title-history-toggle"
+                        style="
+                            font-size: 0.8em;
+                            color: #aaa;
+                        "
+                    >
+                        (▼ Click to show more)
+                    </span>
                 </summary>
-                <ul style="margin: 8px 0 0 16px; padding: 0; color: #ccc; font-size: 0.95em;">
+
+                <ul
+                    style="
+                        margin: 8px 0 0 16px;
+                        padding: 0;
+                        font-size: 0.95em;
+                    "
+                >
                     ${restList}
                 </ul>
             </details>
         `;
+        }
     }
+
+    document.addEventListener("toggle", function (event) {
+        const details = event.target;
+
+        if (!details.matches(".title-history-details")) {
+            return;
+        }
+
+        const toggle = details.querySelector(".title-history-toggle");
+
+        if (!toggle) return;
+
+        toggle.textContent = details.open
+            ? "(▲ Click to show less)"
+            : "(▼ Click to show more)";
+    }, true);
 
     const statsElem = document.getElementById("fighterStats");
     if (statsElem) {
@@ -1440,72 +1514,107 @@ function getFightTitleIconHtml(fight, fighterId = null, weightClassesData = [], 
     if (!isTitle) return "";
 
     const isInterim =
-    type === "interim" ||
-    fight.type === "interim" ||
-    fight.isInterim === true ||
-    fight.titleType === "interim";
+        type === "interim" ||
+        fight.type === "interim" ||
+        fight.isInterim === true ||
+        fight.titleType === "interim";
     const iconSrc = isInterim ? BELT_ICONS.interimBout : BELT_ICONS.undisputedBout;
     const titleText = isInterim ? "Interim Title Fight" : (fight.isTitleTournamentFinal ? "Title Tournament Final" : "Undisputed Title Fight");
 
     return `<img src="${iconSrc}" class="bout-title-icon" title="${titleText}" alt="Title Bout">`;
 }
 
-// 1. Strict fight matcher: Requires BOTH date AND participant/opponent match
-function isSameFight(f, fighter, b) {
-  if (!f || !b) return false;
+// ==========================================
+// TITLE BOUT MATCHING
+// ==========================================
 
-  const fDate = normalizeDateStr(f.date);
-  const bDate = normalizeDateStr(b.date);
-  if (fDate !== bDate) return false;
+function getBoutOpponentIds(b, fighterId) {
+    const fid = String(fighterId);
 
-  // Direct ID check if present
-  if (f.titleBoutId && b.id && String(f.titleBoutId) === String(b.id)) return true;
-  if (f.id && b.id && String(f.id) === String(b.id)) return true;
-
-  // Extract all participant IDs and Names from title bout 'b'
-  const bFighterIds = [
-    b.championId, b.challengerId, b.winnerId, b.loserId,
-    b.fighter1Id, b.fighter2Id, b.fighterAId, b.fighterBId,
-    b.redCornerId, b.blueCornerId
-  ].filter(id => id !== undefined && id !== null).map(String);
-
-  const bFighterNames = [
-    b.championName, b.challengerName, b.winnerName, b.loserName,
-    b.fighter1Name, b.fighter2Name, b.fighterAName, b.fighterBName,
-    b.champion, b.challenger, b.winner, b.loser
-  ].filter(Boolean).map(n => String(n).toLowerCase().trim());
-
-  const fid = fighter ? String(fighter.id || "") : "";
-  const fname = fighter && fighter.name ? String(fighter.name).toLowerCase().trim() : "";
-
-  const oppId = f.opponentId ? String(f.opponentId) : (f.opponent_id ? String(f.opponent_id) : "");
-  const oppName = (f.opponent || f.opponentName || f.opponent_name || "").toLowerCase().trim();
-
-  const fighterMatches = (fid && bFighterIds.includes(fid)) || (fname && bFighterNames.includes(fname));
-  const oppMatches = (oppId && bFighterIds.includes(oppId)) || (oppName && bFighterNames.includes(oppName));
-
-  if (bFighterIds.length > 0 || bFighterNames.length > 0) {
-    if (oppId || oppName) {
-      return fighterMatches && oppMatches;
-    }
-    return fighterMatches;
-  }
-
-  return true;
+    return [
+        b.championId,
+        b.challengerId,
+        b.winnerId,
+        b.loserId,
+        b.fighter1Id,
+        b.fighter2Id,
+        b.fighterAId,
+        b.fighterBId,
+        b.redCornerId,
+        b.blueCornerId
+    ]
+        .filter(id => id !== undefined && id !== null)
+        .map(String)
+        .filter(id => id !== fid);
 }
 
-// 2. Updated Title Fight Evaluator
-function isTitleFightForFighter(f, fighterId, weightClassesData = [], fighter = null) {
+function isSameFight(f, fighter, b) {
+    if (!f || !b || !fighter) return false;
+
+    const fDate = normalizeDateStr(f.date);
+    const bDate = normalizeDateStr(b.date);
+
+    if (!fDate || !bDate || fDate !== bDate) {
+        return false;
+    }
+
+    const fighterId = String(fighter.id);
+    const opponentId = f.opponentId !== undefined && f.opponentId !== null
+        ? String(f.opponentId)
+        : null;
+
+    const boutIds = [
+        b.championId,
+        b.challengerId,
+        b.winnerId,
+        b.loserId,
+        b.fighter1Id,
+        b.fighter2Id,
+        b.fighterAId,
+        b.fighterBId,
+        b.redCornerId,
+        b.blueCornerId
+    ]
+        .filter(id => id !== undefined && id !== null)
+        .map(String);
+
+    // The fighter must actually be one of the participants.
+    if (!boutIds.includes(fighterId)) {
+        return false;
+    }
+
+    // If the fighter record has an opponent, the opponent must also
+    // be one of the participants in this title bout.
+    if (opponentId) {
+        const opponentIds = getBoutOpponentIds(b, fighterId);
+
+        if (!opponentIds.includes(opponentId)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function isTitleFightForFighter(
+    f,
+    fighterId,
+    weightClassesData = [],
+    fighter = null
+) {
     if (!f) {
         return {
             isTitle: false,
             wasDefendingChamp: false,
             weightClass: null,
-            type: null
+            type: null,
+            titleBout: null
         };
     }
 
-    // If the individual fight already explicitly contains title information
+    fighter = fighter || getFighterById(fighterId);
+
+    // First use explicit title information stored on the fight itself.
     if (
         f.isTitle === true ||
         f.isTitleFight === true ||
@@ -1513,41 +1622,80 @@ function isTitleFightForFighter(f, fighterId, weightClassesData = [], fighter = 
     ) {
         return {
             isTitle: true,
-            wasDefendingChamp: !!(
-                f.wasDefendingChamp ||
-                f.isDefense ||
-                f.isTitleDefense
-            ),
-            weightClass: f.weightClass || (fighter ? fighter.weightClass : null),
-            type: f.type || f.titleType || (f.isInterim ? "interim" : "undisputed")
+            wasDefendingChamp:
+                f.wasDefendingChamp === true ||
+                f.isDefense === true ||
+                f.isTitleDefense === true,
+
+            weightClass:
+                f.weightClass ||
+                (fighter ? fighter.weightClass : null),
+
+            type:
+                f.type ||
+                f.titleType ||
+                (f.isInterim ? "interim" : "undisputed"),
+
+            titleBout: null
         };
     }
 
-    const fid = String(fighterId || (fighter ? fighter.id : ""));
+    const fid = String(
+        fighterId || (fighter ? fighter.id : "")
+    );
+
+    if (!fid || !fighter) {
+        return {
+            isTitle: false,
+            wasDefendingChamp: false,
+            weightClass: null,
+            type: null,
+            titleBout: null
+        };
+    }
 
     for (const wc of weightClassesData) {
         if (typeof wc === "string") continue;
 
-        const titleBouts = wc.titleBouts || wc.titleFights || [];
+        const titleBouts =
+            wc.titleBouts ||
+            wc.titleFights ||
+            [];
 
         for (const b of titleBouts) {
-            if (!isSameFight(f, fighter, b)) continue;
+            if (!isSameFight(f, fighter, b)) {
+                continue;
+            }
 
-            const isChamp =
-                (b.championId && String(b.championId) === fid) ||
+            const type = b.type || "undisputed";
+
+            /*
+             * A "defense" bout explicitly means the champion was
+             * defending. This is much safer than trying to infer
+             * champion status from who won the fight.
+             *
+             * championId is also supported for newer data.
+             */
+            const wasDefendingChamp =
+                type === "defense" ||
+                (
+                    b.championId !== undefined &&
+                    b.championId !== null &&
+                    String(b.championId) === fid
+                ) ||
                 (
                     b.championName &&
-                    fighter &&
+                    fighter.name &&
                     b.championName.toLowerCase().trim() ===
                     fighter.name.toLowerCase().trim()
-                ) ||
-                (b.champion && String(b.champion) === fid);
+                );
 
             return {
                 isTitle: true,
-                wasDefendingChamp: isChamp,
-                weightClass: wc.name || f.weightClass || (fighter ? fighter.weightClass : null),
-                type: b.type || "undisputed"
+                wasDefendingChamp,
+                weightClass: wc.name,
+                type,
+                titleBout: b
             };
         }
     }
@@ -1556,195 +1704,701 @@ function isTitleFightForFighter(f, fighterId, weightClassesData = [], fighter = 
         isTitle: false,
         wasDefendingChamp: false,
         weightClass: null,
-        type: null
+        type: null,
+        titleBout: null
     };
 }
 
 // 3. Updated Summary Generator
 function getTitleHistorySummary(fighter, weightClassesData = []) {
-  if (!fighter) return ["None"];
+    if (!fighter) return ["None"];
 
-  const fid = String(fighter.id);
-  let summaryParts = [];
-  let championWeightClasses = new Set();
-  
-  // Track if they currently hold belts in multiple weight classes
-  let activeChampionships = 0;
+    const fid = String(fighter.id);
 
-  // 1. Champion Reigns & Defenses
-  weightClassesData.forEach((wc) => {
-    if (typeof wc === "string") return;
+    const summaryParts = [];
+    const detailParts = [];
+    const divisionChampionParts = [];
 
-    const fighterReigns = (wc.reigns || []).filter((r) => String(r.fighterId) === fid);
+    const championWeightClasses = new Set();
 
-    ["undisputed", "interim"].forEach((type) => {
-      const typeReigns = fighterReigns.filter((r) => r.type === type);
-      if (typeReigns.length === 0) return;
+    let activeChampionships = 0;
 
-      // Add to our unique division tracker
-      championWeightClasses.add(wc.name);
+    // ==========================================================
+    // HELPER: PARSE REIGN DATE
+    // ==========================================================
 
-      const reignCount = typeReigns.length;
-      const totalDefenses = typeReigns.reduce((sum, r) => sum + (r.defenses || 0), 0);
+    function parseReignDate(date) {
+        if (!date) return null;
 
-      const isCurrentChamp =
-        (type === "undisputed" && String(wc.currentChampId) === fid) ||
-        (type === "interim" && String(wc.currentInterimChampId) === fid);
+        const normalized = normalizeDateStr(date);
+        if (!normalized) return null;
 
-      if (isCurrentChamp) activeChampionships++;
+        const time = new Date(`${normalized}T00:00:00`).getTime();
 
-      const baseTitleName = type === "interim" ? `Interim ${wc.name}` : wc.name;
-
-      let champTitle = isCurrentChamp
-        ? (reignCount > 1 ? `${reignCount}-time ${baseTitleName} Champion` : `${baseTitleName} Champion`)
-        : (reignCount > 1 ? `Former ${reignCount}-time ${baseTitleName} Champion` : `Former ${baseTitleName} Champion`);
-
-      const defensesText = totalDefenses > 0 
-        ? ` (${totalDefenses} ${totalDefenses === 1 ? "defense" : "defenses"})` 
-        : "";
-
-      summaryParts.push(`${champTitle}${defensesText}`);
-    });
-  });
-
-  // Map Title Dates to Weight Classes
-  let titleBoutDatesByWC = {};
-  weightClassesData.forEach((wc) => {
-    if (typeof wc === "string") return;
-    const wcName = wc.name;
-    if (!titleBoutDatesByWC[wcName]) titleBoutDatesByWC[wcName] = new Set();
-    
-    (wc.titleBouts || wc.titleFights || []).forEach((b) => {
-      if (b.date) titleBoutDatesByWC[wcName].add(normalizeDateStr(b.date));
-    });
-  });
-
-  let contenderLossesByWC = {};
-  let interimContenderLossesByWC = {};
-  let titleTournamentCountByWC = {};
-
-  const fightsByDate = {};
-  (fighter.fights || []).forEach(f => {
-     const d = normalizeDateStr(f.date);
-     if (!fightsByDate[d]) fightsByDate[d] = [];
-     fightsByDate[d].push(f);
-  });
-
-  Object.entries(fightsByDate).forEach(([dateStr, fightsOnDate]) => {
-     const primaryFight = fightsOnDate[0];
-     const fightWc = primaryFight.weightClass || primaryFight.weight || fighter.weightClass || "Heavyweight";
-
-     const isTitleTournamentDate = titleBoutDatesByWC[fightWc] && titleBoutDatesByWC[fightWc].has(dateStr);
-     const isMultiFightNight = fightsOnDate.length > 1;
-     const hasTournamentFlag = fightsOnDate.some(f => f.isTournament || f.tournament || f.isTitleTournament);
-
-     Object.entries(fightsByDate).forEach(([dateStr, fightsOnDate]) => {
-    const primaryFight = fightsOnDate[0];
-
-    const fightWc =
-        primaryFight.weightClass ||
-        primaryFight.weight ||
-        fighter.weightClass ||
-        "Heavyweight";
-
-    const relevantTitleBouts =
-        (weightClassesData || [])
-            .filter(wc => typeof wc !== "string" && wc.name === fightWc)
-            .flatMap(wc => wc.titleBouts || wc.titleFights || [])
-            .filter(b => normalizeDateStr(b.date) === dateStr);
-
-    // A tournament only counts as a TITLE tournament when
-    // the actual title bout is identified as a tournament/title tournament.
-    const isTitleTournament = relevantTitleBouts.some(
-        b =>
-            b.isTitleTournament === true ||
-            b.titleTournament === true ||
-            b.tournamentType === "title" ||
-            b.type === "tournament"
-    );
-
-    if (isTitleTournament) {
-        titleTournamentCountByWC[fightWc] =
-            (titleTournamentCountByWC[fightWc] || 0) + 1;
+        return Number.isNaN(time) ? null : time;
     }
 
-    fightsOnDate.forEach(f => {
+    // ==========================================================
+    // 1. CHAMPIONSHIP REIGNS
+    // ==========================================================
+
+    weightClassesData.forEach(wc => {
+        if (typeof wc === "string") return;
+
+        const fighterReigns = (wc.reigns || []).filter(
+            r => String(r.fighterId) === fid
+        );
+
+        ["undisputed", "interim"].forEach(type => {
+            const typeReigns = fighterReigns.filter(
+                r => r.type === type
+            );
+
+            if (typeReigns.length === 0) return;
+
+            championWeightClasses.add(wc.name);
+
+            const reignCount = typeReigns.length;
+
+            const totalDefenses = typeReigns.reduce(
+                (sum, reign) =>
+                    sum + Number(reign.defenses || 0),
+                0
+            );
+
+            const isCurrentChamp =
+                (
+                    type === "undisputed" &&
+                    String(wc.currentChampId) === fid
+                ) ||
+                (
+                    type === "interim" &&
+                    String(wc.currentInterimChampId) === fid
+                );
+
+            if (isCurrentChamp) {
+                activeChampionships++;
+            }
+
+            const baseTitleName =
+                type === "interim"
+                    ? `Interim ${wc.name}`
+                    : wc.name;
+
+            const champTitle = isCurrentChamp
+                ? (
+                    reignCount > 1
+                        ? `${reignCount}-time ${baseTitleName} Champion`
+                        : `${baseTitleName} Champion`
+                )
+                : (
+                    reignCount > 1
+                        ? `Former ${reignCount}-time ${baseTitleName} Champion`
+                        : `Former ${baseTitleName} Champion`
+                );
+
+            // Individual division championship line
+            divisionChampionParts.push(champTitle);
+
+            // Defenses belong in "show more"
+            if (totalDefenses > 0) {
+                detailParts.push(
+                    `${totalDefenses} ${totalDefenses === 1
+                        ? "Title Defense"
+                        : "Title Defenses"}`
+                );
+            }
+        });
+    });
+
+    // ==========================================================
+    // 2. BUILD REIGN INTERVALS
+    // ==========================================================
+
+    const fighterReignIntervals = [];
+
+    weightClassesData.forEach(wc => {
+        if (typeof wc === "string") return;
+
+        const fighterReigns = (wc.reigns || []).filter(
+            r => String(r.fighterId) === fid
+        );
+
+        /*
+         * We need each reign in chronological order.
+         */
+        const sortedReigns = fighterReigns
+            .slice()
+            .sort((a, b) => {
+                const aStart =
+                    parseReignDate(a.startDate) ?? Infinity;
+
+                const bStart =
+                    parseReignDate(b.startDate) ?? Infinity;
+
+                return aStart - bStart;
+            });
+
+        sortedReigns.forEach((reign, reignIndex) => {
+            let start = parseReignDate(reign.startDate);
+            let end = parseReignDate(reign.endDate);
+
+            const titleBouts =
+                wc.titleBouts ||
+                wc.titleFights ||
+                [];
+
+            // --------------------------------------------------
+            // DERIVE START DATE WHEN NOT STORED
+            // --------------------------------------------------
+
+            if (start === null) {
+                const possibleStarts = titleBouts
+                    .filter(b => {
+                        if (String(b.winnerId) !== fid) {
+                            return false;
+                        }
+
+                        const boutType =
+                            b.type || "undisputed";
+
+                        /*
+                         * A defense does not start a new reign.
+                         *
+                         * Vacant title wins can start an
+                         * undisputed reign.
+                         */
+                        const isReignStartingBout =
+                            boutType !== "defense" &&
+                            (
+                                boutType === reign.type ||
+                                (
+                                    reign.type === "undisputed" &&
+                                    (
+                                        boutType === "vacant" ||
+                                        boutType === "undisputed"
+                                    )
+                                )
+                            );
+
+                        return isReignStartingBout;
+                    })
+                    .map(b => ({
+                        date: parseReignDate(b.date),
+                        rawDate: b.date
+                    }))
+                    .filter(x => x.date !== null)
+                    .sort((a, b) => a.date - b.date);
+
+                if (possibleStarts[reignIndex]) {
+                    start = possibleStarts[reignIndex].date;
+                }
+            }
+
+            // --------------------------------------------------
+            // DERIVE END DATE WHEN NOT STORED
+            // --------------------------------------------------
+
+            if (end === null && start !== null) {
+                const possibleEnds = titleBouts
+                    .filter(b => {
+                        const boutDate = parseReignDate(b.date);
+
+                        if (
+                            boutDate === null ||
+                            boutDate <= start
+                        ) {
+                            return false;
+                        }
+
+                        // Fighter must lose the championship.
+                        if (String(b.winnerId) === fid) {
+                            return false;
+                        }
+
+                        const boutType =
+                            b.type || "undisputed";
+
+                        /*
+                         * Any championship fight that ends this
+                         * championship type can close the reign.
+                         */
+                        if (reign.type === "interim") {
+                            return (
+                                boutType === "interim" ||
+                                boutType === "vacant"
+                            );
+                        }
+
+                        return (
+                            boutType === "defense" ||
+                            boutType === "undisputed" ||
+                            boutType === "vacant"
+                        );
+                    })
+                    .map(b => parseReignDate(b.date))
+                    .filter(date => date !== null)
+                    .sort((a, b) => a - b);
+
+                if (possibleEnds.length > 0) {
+                    end = possibleEnds[0];
+                }
+            }
+
+            /*
+             * Current reigns continue until now.
+             */
+            if (end === null) {
+                end = Date.now();
+            }
+
+            fighterReignIntervals.push({
+                weightClass: wc.name,
+                type: reign.type,
+                start,
+                end
+            });
+        });
+    });
+
+    // ==========================================================
+    // 3. HOW MANY DIFFERENT DIVISIONS?
+    // ==========================================================
+
+    const distinctChampionDivisions = new Set(
+        fighterReignIntervals
+            .map(r => r.weightClass)
+            .filter(Boolean)
+    );
+
+    const divisionCount =
+        distinctChampionDivisions.size;
+
+    // ==========================================================
+    // 4. FIND SIMULTANEOUS CHAMPIONSHIP PERIODS
+    // ==========================================================
+
+    /*
+     * Only DIFFERENT divisions count here.
+     *
+     * Example:
+     *
+     * Lightweight reign
+     * Featherweight reign
+     *
+     * overlapping = Double Champion
+     *
+     * Two separate Lightweight reigns overlapping
+     * does NOT make somebody a Double Champion.
+     */
+
+    const events = [];
+
+    fighterReignIntervals.forEach(reign => {
+        if (
+            reign.start === null ||
+            reign.end === null ||
+            !reign.weightClass
+        ) {
+            return;
+        }
+
+        events.push({
+            date: reign.start,
+            delta: 1,
+            division: reign.weightClass
+        });
+
+        events.push({
+            date: reign.end,
+            delta: -1,
+            division: reign.weightClass
+        });
+    });
+
+    /*
+     * On the same date, ending a reign happens before beginning
+     * another one. So switching divisions on the same day does
+     * not incorrectly count as simultaneous.
+     */
+    events.sort((a, b) => {
+        if (a.date !== b.date) {
+            return a.date - b.date;
+        }
+
+        return a.delta - b.delta;
+    });
+
+    const activeDivisions = new Set();
+
+    let maxSimultaneousDivisions = 0;
+
+    events.forEach(event => {
+        if (event.delta === 1) {
+            activeDivisions.add(event.division);
+
+            maxSimultaneousDivisions =
+                Math.max(
+                    maxSimultaneousDivisions,
+                    activeDivisions.size
+                );
+        } else {
+            activeDivisions.delete(event.division);
+        }
+    });
+
+    // ==========================================================
+    // 5. CURRENT SIMULTANEOUS DIVISIONS
+    // ==========================================================
+
+    const now = Date.now();
+
+    const currentSimultaneousDivisions =
+        new Set(
+            fighterReignIntervals
+                .filter(reign =>
+                    reign.start !== null &&
+                    reign.end !== null &&
+                    reign.start <= now &&
+                    reign.end >= now
+                )
+                .map(reign => reign.weightClass)
+                .filter(Boolean)
+        );
+
+    const currentSimultaneousCount =
+        currentSimultaneousDivisions.size;
+
+    // ==========================================================
+    // 6. CAREER-LEVEL CHAMPIONSHIP LABEL
+    // ==========================================================
+
+    /*
+     * The career label is ALWAYS the first line.
+     *
+     * Examples:
+     *
+     * Former 2-Division Champion
+     * Former Double Champion
+     * Active 2-Division Champion
+     * Active Double Champion
+     */
+
+    let careerChampionLabel = null;
+
+    if (divisionCount >= 2) {
+
+        // ----------------------------------------------
+        // CURRENTLY DOUBLE / TRIPLE / ETC.
+        // ----------------------------------------------
+
+        if (currentSimultaneousCount >= 2) {
+
+            if (currentSimultaneousCount === 2) {
+                careerChampionLabel =
+                    "Active Double Champion (2 Divisions)";
+            } else if (currentSimultaneousCount === 3) {
+                careerChampionLabel =
+                    "Active Triple Champion (3 Divisions)";
+            } else {
+                careerChampionLabel =
+                    `Active ${currentSimultaneousCount}-Division Champion (Simultaneous)`;
+            }
+
+        // ----------------------------------------------
+        // FORMER DOUBLE / TRIPLE / ETC.
+        // ----------------------------------------------
+
+        } else if (
+            activeChampionships === 0 &&
+            maxSimultaneousDivisions >= 2
+        ) {
+
+            if (maxSimultaneousDivisions === 2) {
+                careerChampionLabel =
+                    "Former Double Champion (2 Divisions)";
+            } else if (maxSimultaneousDivisions === 3) {
+                careerChampionLabel =
+                    "Former Triple Champion (3 Divisions)";
+            } else {
+                careerChampionLabel =
+                    `Former ${maxSimultaneousDivisions}-Division Champion (Simultaneous)`;
+            }
+
+        // ----------------------------------------------
+        // DIFFERENT DIVISIONS, NEVER SIMULTANEOUS
+        // ----------------------------------------------
+
+        } else {
+
+            careerChampionLabel =
+                activeChampionships > 0
+                    ? `Active ${divisionCount}-Division Champion`
+                    : `Former ${divisionCount}-Division Champion`;
+
+            /*
+             * If they were previously a Double/Triple Champion
+             * but currently hold only one division, preserve that
+             * achievement as an additional career detail.
+             */
+            if (maxSimultaneousDivisions >= 2) {
+
+                if (maxSimultaneousDivisions === 2) {
+                    detailParts.unshift(
+                        "Former Double Champion (2 Divisions)"
+                    );
+                } else if (maxSimultaneousDivisions === 3) {
+                    detailParts.unshift(
+                        "Former Triple Champion (3 Divisions)"
+                    );
+                } else {
+                    detailParts.unshift(
+                        `Former ${maxSimultaneousDivisions}-Division Champion (Simultaneous)`
+                    );
+                }
+            }
+        }
+
+        /*
+         * If the fighter has held MORE divisions than the number
+         * they currently/ever held simultaneously, preserve that
+         * broader career achievement too.
+         */
+        if (
+            maxSimultaneousDivisions >= 2 &&
+            divisionCount > maxSimultaneousDivisions
+        ) {
+            detailParts.unshift(
+                `${divisionCount}-Division Champion`
+            );
+        }
+    }
+
+    // ==========================================================
+    // 7. PUT CAREER LABEL FIRST
+    // ==========================================================
+
+    if (careerChampionLabel) {
+        summaryParts.push(careerChampionLabel);
+    }
+
+    /*
+     * Individual division championship achievements come BELOW
+     * the career-level label.
+     */
+    summaryParts.push(...divisionChampionParts);
+
+    // ==========================================================
+    // 8. TITLE TOURNAMENTS
+    // ==========================================================
+
+    const titleTournaments = [];
+
+    weightClassesData.forEach(wc => {
+        if (typeof wc === "string") return;
+
+        const titleBouts =
+            wc.titleBouts ||
+            wc.titleFights ||
+            [];
+
+        titleBouts.forEach(b => {
+
+            /*
+             * A title tournament must explicitly say it is one.
+             */
+            const isTitleTournament =
+                b.isTitleTournament === true ||
+                b.titleTournament === true ||
+                b.isTitleTournamentFinal === true ||
+                b.tournamentType === "title";
+
+            if (!isTitleTournament) return;
+
+            const tournamentKey =
+                b.tournamentId !== undefined &&
+                b.tournamentId !== null
+                    ? `id:${b.tournamentId}`
+                    : `date:${normalizeDateStr(b.date)}`;
+
+            titleTournaments.push({
+                key: tournamentKey,
+                weightClass: wc.name,
+                date: normalizeDateStr(b.date),
+                tournamentId: b.tournamentId ?? null
+            });
+        });
+    });
+
+    // Remove duplicates
+    const uniqueTitleTournaments = [];
+    const seenTournamentKeys = new Set();
+
+    titleTournaments.forEach(tournament => {
+        const key =
+            `${tournament.weightClass}|${tournament.key}`;
+
+        if (seenTournamentKeys.has(key)) return;
+
+        seenTournamentKeys.add(key);
+        uniqueTitleTournaments.push(tournament);
+    });
+
+    // ==========================================================
+    // 9. TITLE TOURNAMENT PARTICIPATION
+    // ==========================================================
+
+    const titleTournamentCountByWC = {};
+
+    uniqueTitleTournaments.forEach(tournament => {
+
+        const participated =
+            (fighter.fights || []).some(fight => {
+
+                /*
+                 * Best method:
+                 * tournamentId directly connects every fight to
+                 * the title tournament.
+                 */
+                if (
+                    tournament.tournamentId !== null &&
+                    tournament.tournamentId !== undefined &&
+                    fight.tournamentId !== undefined &&
+                    fight.tournamentId !== null
+                ) {
+                    return (
+                        String(fight.tournamentId) ===
+                        String(tournament.tournamentId)
+                    );
+                }
+
+                /*
+                 * Legacy fallback for one-night tournaments.
+                 */
+                const fightDate =
+                    normalizeDateStr(fight.date);
+
+                return (
+                    fightDate === tournament.date &&
+                    (
+                        fight.isTournament === true ||
+                        fight.tournament === true ||
+                        fight.isTitleTournament === true
+                    )
+                );
+            });
+
+        if (participated) {
+            titleTournamentCountByWC[tournament.weightClass] =
+                (titleTournamentCountByWC[tournament.weightClass] || 0) + 1;
+        }
+    });
+
+    Object.entries(titleTournamentCountByWC).forEach(
+        ([wc, count]) => {
+            detailParts.push(
+                `${count}x ${wc} Title Tournament Participant`
+            );
+        }
+    );
+
+    // ==========================================================
+    // 10. TITLE CONTENDERS
+    // ==========================================================
+
+    const titleContenderCountByWC = {};
+    const interimContenderCountByWC = {};
+
+    (fighter.fights || []).forEach(fight => {
+
         const titleInfo = isTitleFightForFighter(
-            f,
+            fight,
             fid,
             weightClassesData,
             fighter
         );
 
-        const wcName = titleInfo.weightClass || fightWc;
+        if (!titleInfo.isTitle) return;
 
+        /*
+         * Only a LOSS as the challenger is a title-contender
+         * appearance.
+         *
+         * A champion losing their title is NOT a contender
+         * appearance.
+         */
         if (
-            titleInfo.isTitle &&
-            f.result === "loss" &&
-            !titleInfo.wasDefendingChamp
+            fight.result !== "loss" ||
+            titleInfo.wasDefendingChamp
         ) {
-            if (titleInfo.type === "interim") {
-                interimContenderLossesByWC[wcName] =
-                    (interimContenderLossesByWC[wcName] || 0) + 1;
-            } else {
-                contenderLossesByWC[wcName] =
-                    (contenderLossesByWC[wcName] || 0) + 1;
-            }
+            return;
+        }
+
+        const wcName = titleInfo.weightClass;
+
+        if (!wcName) return;
+
+        if (titleInfo.type === "interim") {
+
+            interimContenderCountByWC[wcName] =
+                (interimContenderCountByWC[wcName] || 0) + 1;
+
+        } else {
+
+            titleContenderCountByWC[wcName] =
+                (titleContenderCountByWC[wcName] || 0) + 1;
         }
     });
-});
 
-     fightsOnDate.forEach(f => {
-        const titleInfo = isTitleFightForFighter(f, fid, weightClassesData, fighter);
-        const wcName = titleInfo.weightClass || fightWc;
-        
-       if (
-    titleInfo.isTitle &&
-    f.result === "loss" &&
-    !titleInfo.wasDefendingChamp
-) {
-    if (titleInfo.type === "interim") {
-        interimContenderLossesByWC[wcName] =
-            (interimContenderLossesByWC[wcName] || 0) + 1;
-    } else {
-        contenderLossesByWC[wcName] =
-            (contenderLossesByWC[wcName] || 0) + 1;
+    Object.entries(titleContenderCountByWC).forEach(
+        ([wc, count]) => {
+
+            /*
+             * If the fighter is already a champion in this
+             * division, do not also show them as a contender
+             * for that same division.
+             */
+            if (championWeightClasses.has(wc)) return;
+
+            detailParts.push(
+                `${count}x ${wc} Title Contender`
+            );
+        }
+    );
+
+    Object.entries(interimContenderCountByWC).forEach(
+        ([wc, count]) => {
+
+            if (championWeightClasses.has(wc)) return;
+
+            detailParts.push(
+                `${count}x Interim ${wc} Title Contender`
+            );
+        }
+    );
+
+    // ==========================================================
+    // 11. FINAL RESULT
+    // ==========================================================
+
+    if (
+        summaryParts.length === 0 &&
+        detailParts.length === 0
+    ) {
+        return ["None"];
     }
-}
-     });
-  });
 
-  // 2. Tournament Participation
-  Object.entries(titleTournamentCountByWC).forEach(([wc, count]) => {
-    summaryParts.push(`${count}x ${wc} Title Tournament Participant`);
-  });
-
-  // 3. Contender Text
-Object.entries(contenderLossesByWC).forEach(([wc, count]) => {
-    if (!championWeightClasses.has(wc)) {
-        summaryParts.push(`${count}x ${wc} Title Contender`);
+    /*
+     * If the fighter has no championship, contender, or
+     * tournament information in the main summary, promote the
+     * first detail to the main line.
+     */
+    if (summaryParts.length === 0) {
+        summaryParts.push(detailParts.shift());
     }
-});
 
-Object.entries(interimContenderLossesByWC).forEach(([wc, count]) => {
-    if (!championWeightClasses.has(wc)) {
-        summaryParts.push(`${count}x Interim ${wc} Title Contender`);
-    }
-});
-
-  // 4. Inject Double/Multi-Division Champ Tag
-  if (championWeightClasses.size > 1) {
-    const isActiveDouble = activeChampionships > 1;
-    const prefix = isActiveDouble ? "Active" : "Former";
-    
-    if (championWeightClasses.size === 2) {
-      summaryParts.unshift(`🏅 ${prefix} Double Champion (Two Divisions)`);
-    } else if (championWeightClasses.size === 3) {
-      summaryParts.unshift(`🏅 ${prefix} Triple Champion (Three Divisions)`);
-    } else {
-       summaryParts.unshift(`🏅 ${prefix} Multi-Division Champion (${championWeightClasses.size} Divisions)`);
-    }
-  }
-
-  return summaryParts.length > 0 ? summaryParts : ["None"];
+    return [
+        ...summaryParts,
+        ...detailParts
+    ];
 }
