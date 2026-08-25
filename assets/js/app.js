@@ -1803,25 +1803,43 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
     const heldUndisputedInWC = (wcName) => divisions.find(d => d.weightClass === wcName)?.hasUndisputed || false;
 
     // ==========================================================
-    // 2. TOURNAMENTS & CONTENDERS PARSING
+    // 2. TOURNAMENTS & CONTENDERS PARSING (The Clean Way)
     // ==========================================================
-    const tournamentFinalists = new Map();
-    const tournamentParticipants = new Map();
+    const titleTourneyFinalists = new Map();
+    const titleTourneyParticipants = new Map();
+    const tourneyFinalists = new Map();
+    const tourneyParticipants = new Map();
     const titleContenders = new Map();
     const interimContenders = new Map();
 
     const addCount = (map, wc) => map.set(wc, (map.get(wc) || 0) + 1);
 
-    // Map title bout dates globally for cross-referencing
-    const titleFightDates = new Set();
+    // 2a. Identify Title Tournaments globally
+    const titleTournamentKeys = new Set();
+    const standardTitleKeys = new Set();
+
     (weightClassesData || []).forEach(wc => {
         if (!wc || typeof wc === "string") return;
         (wc.titleBouts || wc.titleFights || []).forEach(b => {
-            if (b.date) titleFightDates.add(`${b.date}_${wc.name}`);
+            if (!b.date) return;
+            const key = `${b.date}_${wc.name}`;
+            
+            // Check global fighters to see if the winner fought multiple times today
+            const winner = window.fighters.find(f => String(f.id) === String(b.winnerId));
+            if (winner) {
+                const winnerFightsThatDay = winner.fights.filter(f => f.date === b.date);
+                if (winnerFightsThatDay.length > 1) {
+                    titleTournamentKeys.add(key); // It's a Title Tournament
+                } else {
+                    standardTitleKeys.add(key);   // It's a regular Title Fight
+                }
+            } else {
+                standardTitleKeys.add(key);
+            }
         });
     });
 
-    // Group fights by date to analyze 1-night tournament outcomes
+    // 2b. Evaluate this fighter's history by date
     const fightsByDate = {};
     (fighter.fights || []).forEach(f => {
         if (f.date) {
@@ -1833,46 +1851,55 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
     Object.entries(fightsByDate).forEach(([date, dayFights]) => {
         const fallbackWc = fighter.weightClass || "Heavyweight";
         const wcName = dayFights[0].weightClass || fallbackWc;
+        const key = `${date}_${wcName}`;
 
-        // A. Tournament Parsing
-        const isMultiFight = dayFights.length > 1;
-        const explicitTourney = dayFights.some(f => f.isTournament || f.tournamentId || f.isTitleTournament);
+        const isTitleTourney = titleTournamentKeys.has(key);
+        const wins = dayFights.filter(f => f.result === "win").length;
+        const losses = dayFights.filter(f => f.result === "loss").length;
 
-        if (isMultiFight || explicitTourney) {
-            const wins = dayFights.filter(f => f.result === "win").length;
-            const losses = dayFights.filter(f => f.result === "loss").length;
-
+        // -- TITLE TOURNAMENT LOGIC --
+        if (isTitleTourney) {
             if (losses > 0) {
-                if (wins >= 1) {
-                    // Won at least 1 round before losing -> Finalist
-                    addCount(tournamentFinalists, wcName);
-                } else {
-                    // Lost 1st round (0 wins) -> Participant
-                    addCount(tournamentParticipants, wcName);
-                }
+                // Determine if they were the guy who lost the final title bout
+                let wasFinalist = false;
+                weightClassesData.forEach(wc => {
+                    if (wc.name !== wcName) return;
+                    (wc.titleBouts || wc.titleFights || []).forEach(b => {
+                        if (b.date === date && String(b.challengerId) === fid) {
+                             wasFinalist = true; 
+                        }
+                    });
+                });
+
+                // Fallback if challengerId isn't perfectly mapped
+                if (!wasFinalist && wins >= 1) wasFinalist = true;
+
+                if (wasFinalist) addCount(titleTourneyFinalists, wcName);
+                else addCount(titleTourneyParticipants, wcName);
             }
-        } else {
-            // Single fight on date with explicit tournament flags
-            const f = dayFights[0];
-            if (f.isTournament || f.tournamentId) {
-                if (f.result === "loss") {
-                    const isFinal = f.isFinal || f.tournamentStage === "final" || f.isTitleTournamentFinal;
-                    if (isFinal) addCount(tournamentFinalists, wcName);
-                    else addCount(tournamentParticipants, wcName);
-                }
-            }
+            return; // Skip standard contender checks for this date
         }
 
-        // B. Title Contender Parsing (Evaluates every fight independently)
+        // -- STANDARD TOURNAMENT LOGIC --
+        const isMultiFight = dayFights.length > 1;
+        const explicitTourney = dayFights.some(f => f.isTournament || f.tournamentId);
+        
+        if (isMultiFight || explicitTourney) {
+            if (losses > 0) {
+                if (wins >= 1) addCount(tourneyFinalists, wcName);
+                else addCount(tourneyParticipants, wcName);
+            }
+            return; // Skip standard contender checks for this date
+        }
+
+        // -- STANDARD TITLE CONTENDER LOGIC --
         dayFights.forEach(f => {
-            const isLoss = f.result === "loss" || (f.winnerId && String(f.winnerId) !== fid);
-            
-            const isExplicitTitle = f.isTitle || f.titleFight || f.isTitleFight || f.type === "title" || f.type === "interim" || f.isTitleTournamentFinal;
-            const isMatchedTitle = titleFightDates.has(`${date}_${wcName}`) || titleFightDates.has(`${date}_${f.weightClass}`);
-            
-            const isTitleBout = isExplicitTitle || isMatchedTitle;
-            const isInterim = f.isInterim || f.type === "interim";
+            const isLoss = f.result === "loss";
             const fightWc = f.weightClass || wcName;
+            const fightKey = `${date}_${fightWc}`;
+            
+            const isTitleBout = standardTitleKeys.has(fightKey) || f.isTitle || f.type === "title" || f.type === "interim";
+            const isInterim = f.isInterim || f.type === "interim";
 
             if (isTitleBout && isLoss) {
                 const isDefending = String(f.championId) === fid || f.wasDefendingChamp;
@@ -1909,10 +1936,16 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         }
     });
 
-    tournamentFinalists.forEach((count, wc) => {
+    titleTourneyFinalists.forEach((count, wc) => {
+        details.push(`${count > 1 ? `${count}x ` : ''}${wc} Title Tournament Finalist`);
+    });
+    titleTourneyParticipants.forEach((count, wc) => {
+        details.push(`${count > 1 ? `${count}x ` : ''}${wc} Title Tournament Participant`);
+    });
+    tourneyFinalists.forEach((count, wc) => {
         details.push(`${count > 1 ? `${count}x ` : ''}${wc} Tournament Finalist`);
     });
-    tournamentParticipants.forEach((count, wc) => {
+    tourneyParticipants.forEach((count, wc) => {
         details.push(`${count > 1 ? `${count}x ` : ''}${wc} Tournament Participant`);
     });
     titleContenders.forEach((count, wc) => {
