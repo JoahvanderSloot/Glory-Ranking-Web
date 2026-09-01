@@ -1772,6 +1772,7 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         if (!wc) return;
         const wcName = typeof wc === "string" ? wc : wc.name;
         const isCurrentChamp = typeof wc === "object" && String(wc.currentChampId) === fid;
+        const isCurrentInterimChamp = typeof wc === "object" && String(wc.currentInterimChampId) === fid;
 
         const reigns = (typeof wc === "object" && wc.reigns)
             ? wc.reigns.filter(r => String(r.fighterId) === fid)
@@ -1781,7 +1782,11 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
             const type = reign.type === "interim" ? "interim" : "undisputed";
             let startDate = parseDate(reign.startDate);
             let endDate = parseDate(reign.endDate);
-            const isCurrent = reign.endDate === null && (type === "undisputed" ? isCurrentChamp : String(wc.currentInterimChampId) === fid);
+
+            // Resilient check for current champion status
+            const isCurrent = reign.isCurrent === true ||
+                isCurrentChamp ||
+                (!reign.endDate && (type === "undisputed" ? isCurrentChamp : isCurrentInterimChamp));
 
             // Infer start date from fight history if missing in reign object
             if (startDate === null && fighter.fights) {
@@ -1792,14 +1797,18 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
                 if (titleFight) startDate = parseDate(titleFight.date);
             }
 
-            // Infer end date if missing for a former champ by checking for a loss
-            if (endDate === null && !isCurrent && fighter.fights) {
+            // Force end date to Infinity if currently holding the title
+            if (isCurrent) {
+                endDate = Infinity;
+            } else if ((endDate === null || endDate === undefined) && fighter.fights) {
+                // Only infer end date from a fight IF it was explicitly a TITLE loss in this division
                 const lossFight = fighter.fights.find(f => {
                     if (f.result !== "loss") return false;
                     const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
-                    const fWc = meta.weightClass || f.weightClass || fighter.weightClass;
+                    const fWc = meta.weightClass || f.weightClass;
                     const fDate = parseDate(f.date);
-                    return fWc === wcName && (startDate !== null ? (fDate && fDate >= startDate) : true);
+                    const isTitleLoss = f.isTitle || f.isTitleFight || meta.isTitle;
+                    return isTitleLoss && fWc === wcName && (startDate !== null ? (fDate && fDate >= startDate) : true);
                 });
 
                 if (lossFight) {
@@ -1828,7 +1837,7 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
             const boutDefenses = titleBouts.filter(b => {
                 const boutDate = parseDate(b.date);
                 const isAfterStart = startDate !== null ? (boutDate && boutDate >= startDate) : true;
-                const isBeforeEnd = endDate !== null ? (boutDate && boutDate <= endDate) : true;
+                const isBeforeEnd = endDate !== null && endDate !== Infinity ? (boutDate && boutDate <= endDate) : true;
                 const isWinner = String(b.winnerId) === fid;
                 const isChampionAtBout = String(b.championId) === fid;
                 const isDefenseExplicit = normalizeTitleType(b.type || b.titleType || "") === "defense"
@@ -1843,7 +1852,7 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
                 if (f.result !== "win") return false;
                 const fDate = parseDate(f.date);
                 const isAfterStart = startDate !== null ? (fDate && fDate >= startDate) : true;
-                const isBeforeEnd = endDate !== null ? (fDate && fDate <= endDate) : true;
+                const isBeforeEnd = endDate !== null && endDate !== Infinity ? (fDate && fDate <= endDate) : true;
 
                 const isTitle = f.isTitle || f.type === type || f.titleType === type || f.isTitleFight || f.isTitleBout;
                 const isDefenseExplicit = normalizeTitleType(f.type || f.titleType || "") === "defense"
@@ -1866,7 +1875,7 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         });
     });
 
-    // Fallback: If `wc.reigns` was empty, rebuild reign windows directly from fighter fights
+    // Fallback: If wc.reigns is empty, rebuild reign windows directly from fighter fights
     if (allUndisputedReigns.length === 0 && fighter.fights) {
         const divisionWins = new Map();
         fighter.fights.forEach(f => {
@@ -1884,20 +1893,35 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         });
 
         divisionWins.forEach((startDate, wcName) => {
-            const lossFight = fighter.fights.find(f => {
-                if (f.result !== "loss") return false;
-                const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
-                const fWc = meta.weightClass || f.weightClass || fighter.weightClass;
-                const fDate = parseDate(f.date);
-                return fWc === wcName && fDate !== null && fDate >= startDate;
-            });
+            const isCurrent = weightClassesData.some(wc =>
+                (typeof wc === "object" ? wc.name === wcName : wc === wcName) && String(wc.currentChampId) === fid
+            );
 
-            const endDate = lossFight ? parseDate(lossFight.date) : Infinity;
+            let endDate = Infinity;
+            if (!isCurrent) {
+                const lossFight = fighter.fights.find(f => {
+                    if (f.result !== "loss") return false;
+                    const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+                    const isTitleLoss = f.isTitle || f.isTitleFight || meta.isTitle;
+                    const fWc = meta.weightClass || f.weightClass;
+                    const fDate = parseDate(f.date);
+                    return isTitleLoss && fWc === wcName && fDate !== null && fDate >= startDate;
+                });
+                if (lossFight) endDate = parseDate(lossFight.date);
+            }
+
             allUndisputedReigns.push({
                 weightClass: wcName,
                 startDate,
-                endDate,
-                isCurrent: endDate === Infinity
+                endDate: isCurrent ? Infinity : endDate,
+                isCurrent
+            });
+
+            championshipRecords.push({
+                weightClass: wcName,
+                type: "undisputed",
+                isCurrent,
+                defenses: 0
             });
         });
     }
@@ -1916,7 +1940,6 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
                 const e2 = r2.endDate;
 
                 if (s1 !== null && s2 !== null) {
-                    // Overlap rule: Reign 1 started before Reign 2 ended AND Reign 2 started before Reign 1 ended
                     if (s1 <= e2 && s2 <= e1) {
                         wasSimultaneousDoubleChamp = true;
                         break;
