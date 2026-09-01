@@ -1749,40 +1749,82 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
 
     const fid = String(fighter.id);
 
-    // Safely parse date strings into timestamps, avoiding JS null-coercion bugs
+    // Robust date parser supporting YYYY, YYYY-MM, YYYY-MM-DD
     const parseDate = (dateStr) => {
         if (!dateStr) return null;
         const norm = typeof normalizeDateStr === "function" ? normalizeDateStr(dateStr) : String(dateStr).trim();
+        if (/^\d{4}$/.test(norm)) return new Date(`${norm}-01-01T00:00:00`).getTime();
+        if (/^\d{4}-\d{2}$/.test(norm)) return new Date(`${norm}-01T00:00:00`).getTime();
         const match = norm.match(/\d{4}-\d{2}-\d{2}/);
-        const clean = match ? match[0] : norm;
-        const d = new Date(`${clean}T00:00:00`).getTime();
+        if (match) {
+            const d = new Date(`${match[0]}T00:00:00`).getTime();
+            return Number.isNaN(d) ? null : d;
+        }
+        const d = new Date(norm).getTime();
         return Number.isNaN(d) ? null : d;
     };
 
-    // ==========================================================
-    // 1. CHAMPIONSHIP REIGNS & DEFENSES
-    // ==========================================================
+    // 1. COLLECT CHAMPIONSHIP REIGNS & DEFENSES
     const championshipRecords = [];
-    let allReigns = [];
+    const allUndisputedReigns = [];
 
     (weightClassesData || []).forEach(wc => {
-        if (!wc || typeof wc === "string") return;
+        if (!wc) return;
+        const wcName = typeof wc === "string" ? wc : wc.name;
+        const isCurrentChamp = typeof wc === "object" && String(wc.currentChampId) === fid;
 
-        const reigns = (wc.reigns || []).filter(r => String(r.fighterId) === fid);
-        
+        const reigns = (typeof wc === "object" && wc.reigns)
+            ? wc.reigns.filter(r => String(r.fighterId) === fid)
+            : [];
+
         reigns.forEach(reign => {
             const type = reign.type === "interim" ? "interim" : "undisputed";
-            const startDate = parseDate(reign.startDate);
-            const endDate = parseDate(reign.endDate);
-            const isCurrent = reign.endDate === null || (type === "undisputed" ? String(wc.currentChampId) === fid : String(wc.currentInterimChampId) === fid);
+            let startDate = parseDate(reign.startDate);
+            let endDate = parseDate(reign.endDate);
+            const isCurrent = reign.endDate === null && (type === "undisputed" ? isCurrentChamp : String(wc.currentInterimChampId) === fid);
 
-            allReigns.push({ weightClass: wc.name, startDate, endDate, isCurrent, type });
+            // Infer start date from fight history if missing in reign object
+            if (startDate === null && fighter.fights) {
+                const titleFight = fighter.fights.find(f => {
+                    const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+                    return f.result === "win" && (meta.weightClass === wcName || f.weightClass === wcName);
+                });
+                if (titleFight) startDate = parseDate(titleFight.date);
+            }
 
-            // Method A: Stored defenses on reign object
+            // Infer end date if missing for a former champ by checking for a loss
+            if (endDate === null && !isCurrent && fighter.fights) {
+                const lossFight = fighter.fights.find(f => {
+                    if (f.result !== "loss") return false;
+                    const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+                    const fWc = meta.weightClass || f.weightClass || fighter.weightClass;
+                    const fDate = parseDate(f.date);
+                    return fWc === wcName && (startDate !== null ? (fDate && fDate >= startDate) : true);
+                });
+
+                if (lossFight) {
+                    endDate = parseDate(lossFight.date);
+                } else if (typeof wc === "object" && wc.reigns) {
+                    const nextReign = wc.reigns
+                        .map(r => parseDate(r.startDate))
+                        .filter(d => d !== null && startDate !== null && d > startDate)
+                        .sort((a, b) => a - b)[0];
+                    if (nextReign) endDate = nextReign;
+                }
+            }
+
+            if (type === "undisputed" && startDate !== null) {
+                allUndisputedReigns.push({
+                    weightClass: wcName,
+                    startDate,
+                    endDate: isCurrent ? Infinity : (endDate !== null ? endDate : Infinity),
+                    isCurrent
+                });
+            }
+
+            // Defenses calculation
             let storedDefenses = typeof reign.defenses === "number" ? reign.defenses : 0;
-
-            // Method B: Count defenses from title bouts in weightClass
-            const titleBouts = wc.titleBouts || wc.titleFights || [];
+            const titleBouts = (typeof wc === "object" && (wc.titleBouts || wc.titleFights)) || [];
             const boutDefenses = titleBouts.filter(b => {
                 const boutDate = parseDate(b.date);
                 const isAfterStart = startDate !== null ? (boutDate && boutDate >= startDate) : true;
@@ -1797,7 +1839,6 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
                 return isWinner && (isDefenseExplicit || isChampionAtBout) && isAfterStart && isBeforeEnd;
             }).length;
 
-            // Method C: Count directly from fighter's fight wins during reign
             const fightDefenses = (fighter.fights || []).filter(f => {
                 if (f.result !== "win") return false;
                 const fDate = parseDate(f.date);
@@ -1817,13 +1858,74 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
             const totalDefenses = Math.max(storedDefenses, boutDefenses, fightDefenses);
 
             championshipRecords.push({
-                weightClass: wc.name,
+                weightClass: wcName,
                 type,
                 isCurrent,
                 defenses: totalDefenses
             });
         });
     });
+
+    // Fallback: If `wc.reigns` was empty, rebuild reign windows directly from fighter fights
+    if (allUndisputedReigns.length === 0 && fighter.fights) {
+        const divisionWins = new Map();
+        fighter.fights.forEach(f => {
+            if (f.result !== "win") return;
+            const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+            if (meta.isTitle && meta.type !== "interim") {
+                const wcName = meta.weightClass || f.weightClass || fighter.weightClass;
+                const fDate = parseDate(f.date);
+                if (wcName && fDate !== null) {
+                    if (!divisionWins.has(wcName) || fDate < divisionWins.get(wcName)) {
+                        divisionWins.set(wcName, fDate);
+                    }
+                }
+            }
+        });
+
+        divisionWins.forEach((startDate, wcName) => {
+            const lossFight = fighter.fights.find(f => {
+                if (f.result !== "loss") return false;
+                const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+                const fWc = meta.weightClass || f.weightClass || fighter.weightClass;
+                const fDate = parseDate(f.date);
+                return fWc === wcName && fDate !== null && fDate >= startDate;
+            });
+
+            const endDate = lossFight ? parseDate(lossFight.date) : Infinity;
+            allUndisputedReigns.push({
+                weightClass: wcName,
+                startDate,
+                endDate,
+                isCurrent: endDate === Infinity
+            });
+        });
+    }
+
+    // CHECK FOR SIMULTANEOUS OVERLAP
+    let wasSimultaneousDoubleChamp = false;
+    for (let i = 0; i < allUndisputedReigns.length; i++) {
+        for (let j = i + 1; j < allUndisputedReigns.length; j++) {
+            const r1 = allUndisputedReigns[i];
+            const r2 = allUndisputedReigns[j];
+
+            if (r1.weightClass !== r2.weightClass) {
+                const s1 = r1.startDate;
+                const e1 = r1.endDate;
+                const s2 = r2.startDate;
+                const e2 = r2.endDate;
+
+                if (s1 !== null && s2 !== null) {
+                    // Overlap rule: Reign 1 started before Reign 2 ended AND Reign 2 started before Reign 1 ended
+                    if (s1 <= e2 && s2 <= e1) {
+                        wasSimultaneousDoubleChamp = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (wasSimultaneousDoubleChamp) break;
+    }
 
     // Group championship records by division
     const divisionData = new Map();
@@ -1852,11 +1954,25 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
     const doubleChampionCount = undisputedDivisions.length;
     const hasMultipleDivisions = doubleChampionCount >= 2;
 
+    const activeUndisputedDivisions = undisputedDivisions.filter(d => d.currentUndisputed !== null);
+    const formerUndisputedDivisions = undisputedDivisions.filter(d => d.currentUndisputed === null);
+
     const heldUndisputedInWC = (wcName) => divisions.find(d => d.weightClass === wcName)?.hasUndisputed || false;
 
-    // ==========================================================
+    // Helper for generating standard division title tags
+    const getDivisionTag = (div, forceFormer = false) => {
+        const isCurrent = !forceFormer && div.currentUndisputed !== null;
+        let label = isCurrent ? `${div.weightClass} World Champion` : `Former ${div.weightClass} World Champion`;
+        if (div.undisputed.length > 1) label = `${div.undisputed.length}x ${label}`;
+
+        const defenseCount = div.totalUndisputedDefenses;
+        if (defenseCount > 0) {
+            label += ` (${defenseCount} ${defenseCount === 1 ? 'defense' : 'defenses'})`;
+        }
+        return label;
+    };
+
     // 2. CONTENDERS
-    // ==========================================================
     const seenEventTags = new Set();
     const tagCounts = new Map();
     const addTag = (wcName, tagLabel, dateKey = "unknown") => {
@@ -1908,27 +2024,64 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         });
     });
 
-    // ==========================================================
     // 3. BUILD OUTPUT
-    // ==========================================================
     const details = [];
 
     if (hasMultipleDivisions) {
-        const label = doubleChampionCount === 2 ? "Double champion" : `${doubleChampionCount} Division Champion`;
-        details.push(label);
+        if (wasSimultaneousDoubleChamp) {
+            if (activeUndisputedDivisions.length >= 2) {
+                const label = doubleChampionCount === 2 ? "Double champion" : `${doubleChampionCount} Division Champion`;
+                details.push(label);
+
+                undisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div));
+                });
+            } else if (activeUndisputedDivisions.length === 1) {
+                const activeDiv = activeUndisputedDivisions[0];
+                details.push(getDivisionTag(activeDiv));
+                details.push("Former double champion");
+
+                formerUndisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div, true));
+                });
+            } else {
+                details.push("Former Double Champion");
+
+                undisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div, true));
+                });
+            }
+        } else {
+            // Non-simultaneous multi-division champion
+            if (activeUndisputedDivisions.length >= 1) {
+                const label = doubleChampionCount === 2 ? "2 division champion" : `${doubleChampionCount} division champion`;
+                details.push(label);
+
+                activeUndisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div));
+                });
+                formerUndisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div, true));
+                });
+            } else {
+                const label = doubleChampionCount === 2 ? "Former 2 division champion" : `Former ${doubleChampionCount} division champion`;
+                details.push(label);
+
+                undisputedDivisions.forEach(div => {
+                    details.push(getDivisionTag(div, true));
+                });
+            }
+        }
+    } else {
+        divisions.forEach(div => {
+            if (div.hasUndisputed) {
+                details.push(getDivisionTag(div));
+            }
+        });
     }
 
+    // Add interim title tags for divisions without undisputed belts
     divisions.forEach(div => {
-        if (div.hasUndisputed) {
-            let label = div.currentUndisputed ? `${div.weightClass} World Champion` : `Former ${div.weightClass} World Champion`;
-            if (div.undisputed.length > 1) label = `${div.undisputed.length}x ${label}`;
-
-            const defenseCount = div.totalUndisputedDefenses;
-            if (defenseCount > 0) {
-                label += ` (${defenseCount} ${defenseCount === 1 ? 'defense' : 'defenses'})`;
-            }
-            details.push(label);
-        }
         if (div.hasInterim && !div.hasUndisputed) {
             let label = div.interim.find(r => r.isCurrent) ? `${div.weightClass} Interim World Champion` : `Former ${div.weightClass} Interim World Champion`;
             if (div.interim.length > 1) label = `${div.interim.length}x ${label}`;
@@ -1941,6 +2094,7 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         }
     });
 
+    // Add contender tags
     const orderedTagEntries = [];
     tagCounts.forEach((count, key) => {
         const [wc, ...labelParts] = key.split('|');
