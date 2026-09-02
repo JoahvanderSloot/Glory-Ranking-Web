@@ -1548,7 +1548,7 @@ label[for="predictionSearch2"] {
   height: 16px;
   width: auto;
   margin-right: 6px;       /* Spacing between icon and WIN */
-}
+} 
 
 /* ==========================================================
    1. PREDICTIONS PAGE: STACK HEADERS & DROPDOWNS (NO OVERLAP)
@@ -1769,7 +1769,7 @@ label[for="predictionSearch2"] {
 @media (max-width: 768px) {
     .fight-row .bout-title-icon {
         position: absolute;
-        left: 13%;
+        left: 16.5%;
         right: auto;
         top: 50%;
         transform: translateY(-50%);
