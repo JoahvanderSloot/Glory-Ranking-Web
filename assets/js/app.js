@@ -1959,8 +1959,42 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
         divisionData.get(rec.weightClass)[rec.type].push(rec);
     });
 
-    const divisions = [];
+const divisions = [];
     divisionData.forEach(data => {
+        // Count unique title defense wins for this fighter in this weight class
+const countUniqueDefenses = (beltType) => {
+            const countedDates = new Set();
+
+            (fighter.fights || []).forEach(f => {
+                // A champ retains/defends their belt on a WIN or a DRAW
+                const isRetainedResult = f.result === "win" || f.result === "draw" || f.result === "majority draw" || f.result === "split draw";
+                if (!isRetainedResult) return;
+                
+                const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
+                const fWc = meta.weightClass || f.weightClass;
+                if (fWc !== data.weightClass) return;
+
+                const isCorrectType = beltType === "interim" 
+                    ? (meta.type === "interim" || f.type === "interim" || f.isInterim)
+                    : (meta.type !== "interim" && f.type !== "interim" && !f.isInterim);
+
+                const isDefense = meta.wasDefendingChamp || 
+                                  f.wasDefendingChamp || 
+                                  f.isDefense || 
+                                  f.isTitleDefense || 
+                                  normalizeTitleType(f.type || f.titleType || "") === "defense";
+
+                if (isCorrectType && isDefense) {
+                    countedDates.add(f.date);
+                }
+            });
+
+            return countedDates.size;
+        };
+
+        const actualUndisputedDefenses = countUniqueDefenses("undisputed");
+        const actualInterimDefenses = countUniqueDefenses("interim");
+
         divisions.push({
             weightClass: data.weightClass,
             undisputed: data.undisputed,
@@ -1968,8 +2002,8 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
             currentUndisputed: data.undisputed.find(r => r.isCurrent) || null,
             hasUndisputed: data.undisputed.length > 0,
             hasInterim: data.interim.length > 0,
-            totalUndisputedDefenses: data.undisputed.reduce((sum, r) => sum + r.defenses, 0),
-            totalInterimDefenses: data.interim.reduce((sum, r) => sum + r.defenses, 0)
+            totalUndisputedDefenses: actualUndisputedDefenses,
+            totalInterimDefenses: actualInterimDefenses
         });
     });
 
