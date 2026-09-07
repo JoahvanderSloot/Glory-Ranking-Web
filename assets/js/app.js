@@ -663,6 +663,21 @@ async function addFightAdmin() {
         fightForF2.isInterim = resolvedType.includes("interim");
     }
 
+    // 3. Update Weight Classes Championship Data
+    let titleData = null;
+    if (titleType !== "none") {
+        titleData = updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
+        if (titleData) {
+            fightForF1.weightClass = titleData.weightClass;
+            fightForF2.weightClass = titleData.weightClass;
+        }
+        if (titleData?.wasDefendingChamp) {
+            const winningFight = winnerId === f1.id ? fightForF1 : fightForF2;
+            winningFight.wasDefendingChamp = true;
+            winningFight.championId = winnerId;
+        }
+    }
+
     // Update fighter records
     f1.fights.push(fightForF1);
     f2.fights.push(fightForF2);
@@ -670,11 +685,6 @@ async function addFightAdmin() {
     if (result1 === "win") { f1.wins++; f2.losses++; }
     else if (result1 === "loss") { f1.losses++; f2.wins++; }
     else { f1.draws++; f2.draws++; }
-
-    // 3. Update Weight Classes Championship Data
-    if (titleType !== "none") {
-        updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
-    }
 
     const saved = await saveData();
     if (!saved) {
@@ -708,40 +718,74 @@ function normalizeTitleType(rawType) {
 }
 
 function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
-    // Determine target weight class object
-    const targetWcName = f1.weightClass || f2.weightClass;
-    const wcObj = weightClasses.find(w => typeof w === "object" && w.name === targetWcName);
+    const normalizedType = normalizeTitleType(titleType);
+    const beltType = normalizedType === "interim" ? "interim" : "undisputed";
+    const winner = winnerId === f1.id ? f1 : f2;
+    const opponent = winnerId === f1.id ? f2 : f1;
+    const currentChampionKey = beltType === "interim" ? "currentInterimChampId" : "currentChampId";
 
-    if (!wcObj) return;
+    // A double champion may have a different stored weight class than the belt
+    // being defended, so prefer the opponent's division when it is held by the winner.
+    const championDivision = weightClasses.find(w =>
+        typeof w === "object" &&
+        w.name === opponent.weightClass &&
+        String(w[currentChampionKey]) === String(winnerId)
+    ) || weightClasses.find(w =>
+        typeof w === "object" &&
+        String(w[currentChampionKey]) === String(winnerId)
+    );
+    const targetWcName = championDivision?.name || opponent.weightClass || winner.weightClass;
+    const targetIndex = weightClasses.findIndex(w =>
+        (typeof w === "string" ? w : w?.name) === targetWcName
+    );
+
+    if (targetIndex === -1) return null;
+
+    // Older data stores untouched divisions as strings. Promote the selected
+    // division to an object so its title history can be persisted.
+    if (typeof weightClasses[targetIndex] === "string") {
+        weightClasses[targetIndex] = { name: weightClasses[targetIndex] };
+    }
+
+    const wcObj = weightClasses[targetIndex];
 
     wcObj.titleBouts = wcObj.titleBouts || wcObj.titleFights || [];
     wcObj.reigns = wcObj.reigns || [];
-
-    const normalizedType = normalizeTitleType(titleType);
-    const beltType = normalizedType.includes("interim") ? "interim" : "undisputed";
+    const currentChampionId = wcObj[currentChampionKey] ?? null;
+    const wasDefendingChamp = normalizedType !== "vacant" &&
+        Boolean(winnerId) &&
+        String(currentChampionId) === String(winnerId);
+    const savedBoutType = wasDefendingChamp
+        ? "defense"
+        : (normalizedType === "none" ? "undisputed" : normalizedType);
 
     const bout = {
         date: date,
-        type: normalizedType === "none" ? "undisputed" : normalizedType,
+        type: savedBoutType,
         challengerId: loserId,
-        winnerId: winnerId,
-        championId: beltType === "interim"
-            ? (wcObj.currentInterimChampId ?? null)
-            : (wcObj.currentChampId ?? null)
+        winnerId: winnerId
     };
 
     // A. Log Title Bout
     wcObj.titleBouts.push(bout);
 
-    if (!winnerId) return; // Draw - no belt change
+    if (!winnerId) return { weightClass: wcObj.name, wasDefendingChamp: false, type: savedBoutType }; // Draw - no belt change
 
     // B. Handle Belt Handover & Reign Logic
     if (beltType === "undisputed") {
         // Successful defense by current champ
-        if (wcObj.currentChampId === winnerId) {
+        if (wasDefendingChamp) {
             const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "undisputed");
             if (currentReign) {
                 currentReign.defenses = (currentReign.defenses || 0) + 1;
+            } else {
+                wcObj.reigns.push({
+                    fighterId: winnerId,
+                    type: "undisputed",
+                    startDate: date,
+                    endDate: null,
+                    defenses: 1
+                });
             }
         } else {
             // End old champion reign if dethroned or filled vacant title
@@ -762,10 +806,18 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
         }
     } else if (beltType === "interim") {
         // Successful defense of interim title
-        if (wcObj.currentInterimChampId === winnerId) {
+        if (wasDefendingChamp) {
             const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "interim");
             if (currentReign) {
                 currentReign.defenses = (currentReign.defenses || 0) + 1;
+            } else {
+                wcObj.reigns.push({
+                    fighterId: winnerId,
+                    type: "interim",
+                    startDate: date,
+                    endDate: null,
+                    defenses: 1
+                });
             }
         } else {
             // New Interim Champ
@@ -784,6 +836,8 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
             });
         }
     }
+
+    return { weightClass: wcObj.name, wasDefendingChamp, type: savedBoutType };
 }
 
 function clearAddFightFields() {
