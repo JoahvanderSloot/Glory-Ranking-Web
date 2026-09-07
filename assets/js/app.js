@@ -1105,9 +1105,27 @@ function addFight(f1Id, f2Id, winnerId, method, date) {
 }
 async function saveData() {
     try {
+        const removeUndefined = (value) => {
+            if (Array.isArray(value)) {
+                return value
+                    .filter(item => item !== undefined)
+                    .map(item => removeUndefined(item));
+            }
+
+            if (value && typeof value === "object") {
+                return Object.fromEntries(
+                    Object.entries(value)
+                        .filter(([, item]) => item !== undefined)
+                        .map(([key, item]) => [key, removeUndefined(item)])
+                );
+            }
+
+            return value;
+        };
+
         await setDoc(doc(db, "data", "fighters"), {
-            fighters,
-            weightClasses
+            fighters: removeUndefined(fighters),
+            weightClasses: removeUndefined(weightClasses)
         });
         console.log("Data saved to Firebase");
         return true;
