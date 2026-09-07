@@ -159,6 +159,30 @@ window.Logout = Logout;
 // ========================
 // LOAD DATA
 // ========================
+function normalizeWeightClassReigns(classes) {
+    return classes.map(weightClass => {
+        if (typeof weightClass === "string" || !weightClass || !Array.isArray(weightClass.reigns)) {
+            return weightClass;
+        }
+
+        const reignKey = reign => `${reign.type}|${reign.fighterId}`;
+        const minimalReignKeys = new Set(
+            weightClass.reigns
+                .filter(reign => reign && Object.keys(reign).every(key => key === "type" || key === "fighterId"))
+                .map(reignKey)
+        );
+
+        return {
+            ...weightClass,
+            reigns: weightClass.reigns
+                .filter(reign => reign && (!minimalReignKeys.has(reignKey(reign)) || Object.keys(reign).every(key => key === "type" || key === "fighterId")))
+                .map(reign => ({
+                    type: reign.type,
+                    fighterId: reign.fighterId
+                }))
+        };
+    });
+}
 
 async function loadData() {
     try {
@@ -170,6 +194,7 @@ async function loadData() {
             fighters = data.fighters || [];
             window.fighters = fighters;
             weightClasses = data.weightClasses || weightClasses;
+            weightClasses = normalizeWeightClassReigns(weightClasses);
         } else {
             console.warn("No Firebase data found, using defaults");
         }
@@ -775,64 +800,26 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     if (beltType === "undisputed") {
         // Successful defense by current champ
         if (wasDefendingChamp) {
-            const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "undisputed");
-            if (currentReign) {
-                currentReign.defenses = (currentReign.defenses || 0) + 1;
-            } else {
-                wcObj.reigns.push({
-                    fighterId: winnerId,
-                    type: "undisputed",
-                    startDate: date,
-                    endDate: null,
-                    defenses: 1
-                });
-            }
+            // Defenses are counted from titleBouts; do not create a new reign.
         } else {
             // End old champion reign if dethroned or filled vacant title
-            if (wcObj.currentChampId) {
-                const oldReign = wcObj.reigns.find(r => r.fighterId === wcObj.currentChampId && r.endDate === null && r.type === "undisputed");
-                if (oldReign) oldReign.endDate = date;
-            }
-
             // Set new champion
             wcObj.currentChampId = winnerId;
             wcObj.reigns.push({
-                fighterId: winnerId,
                 type: "undisputed",
-                startDate: date,
-                endDate: null,
-                defenses: 0
+                fighterId: winnerId
             });
         }
     } else if (beltType === "interim") {
         // Successful defense of interim title
         if (wasDefendingChamp) {
-            const currentReign = wcObj.reigns.find(r => r.fighterId === winnerId && r.endDate === null && r.type === "interim");
-            if (currentReign) {
-                currentReign.defenses = (currentReign.defenses || 0) + 1;
-            } else {
-                wcObj.reigns.push({
-                    fighterId: winnerId,
-                    type: "interim",
-                    startDate: date,
-                    endDate: null,
-                    defenses: 1
-                });
-            }
+            // Defenses are counted from titleBouts; do not create a new reign.
         } else {
             // New Interim Champ
-            if (wcObj.currentInterimChampId) {
-                const oldReign = wcObj.reigns.find(r => r.fighterId === wcObj.currentInterimChampId && r.endDate === null && r.type === "interim");
-                if (oldReign) oldReign.endDate = date;
-            }
-
             wcObj.currentInterimChampId = winnerId;
             wcObj.reigns.push({
-                fighterId: winnerId,
                 type: "interim",
-                startDate: date,
-                endDate: null,
-                defenses: 0
+                fighterId: winnerId
             });
         }
     }
@@ -1043,6 +1030,7 @@ function uploadJSON() {
         try {
             const data = JSON.parse(e.target.result);
             fighters = data.fighters || []; weightClasses = data.weightClasses || weightClasses;
+            weightClasses = normalizeWeightClassReigns(weightClasses);
             fighters.forEach(f => {
                 f.draws = f.draws || 0;
             });
