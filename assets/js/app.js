@@ -437,11 +437,26 @@ function renderFightHistory(fights) {
 function renderEloChart(fights) {
     const ctx = document.getElementById("eloChart").getContext("2d");
 
-    // Start labels with "Start" or initial date if you want
-    const labels = ["Start", ...fights.map(f => f.date)];
+    let runningElo = 1000;
+    let runningEloKO = 1000;
+    const labels = ["Start"];
+    const data = [showKOBonus ? runningEloKO : runningElo];
 
-    // Start Elo at 1000
-    const data = [1000, ...fights.map(f => showKOBonus ? f.eloKO : f.elo)];
+    fights.forEach(fight => {
+        const storedElo = Number(showKOBonus ? fight.eloKO : fight.elo);
+        const eloChange = Number(showKOBonus ? fight.eloChangeKO : fight.eloChange);
+
+        if (Number.isFinite(storedElo)) {
+            if (showKOBonus) runningEloKO = storedElo;
+            else runningElo = storedElo;
+        } else if (Number.isFinite(eloChange)) {
+            if (showKOBonus) runningEloKO += eloChange;
+            else runningElo += eloChange;
+        }
+
+        labels.push(fight.date || "Unknown");
+        data.push(showKOBonus ? runningEloKO : runningElo);
+    });
 
     if (eloChart) eloChart.destroy();
 
@@ -664,7 +679,9 @@ async function addFightAdmin() {
         result: result1,
         method: method,
         eloChange: eloChange,
-        eloChangeKO: eloKOChange
+        eloChangeKO: eloKOChange,
+        elo: f1.elo,
+        eloKO: f1.eloKO
     };
 
     const fightForF2 = {
@@ -673,7 +690,9 @@ async function addFightAdmin() {
         result: result2,
         method: method,
         eloChange: -eloChange,
-        eloChangeKO: -eloKOChange
+        eloChangeKO: -eloKOChange,
+        elo: f2.elo,
+        eloKO: f2.eloKO
     };
 
     // Attach title type if not 'none'
