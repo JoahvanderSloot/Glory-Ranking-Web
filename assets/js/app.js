@@ -579,10 +579,10 @@ setupFightSearch("fightSearch2", "fightResults2");
 function updateFightWinnerOptions() {
     const sel = document.getElementById("fightWinner");
     sel.innerHTML = '<option value="draw">Draw</option>';
-    if (fightSelection.f1) sel.innerHTML += `<option value="${fightSelection.f1}">Winner: ${getFighterById(fightSelection.f1).name}</option>`;
-    if (fightSelection.f2) sel.innerHTML += `<option value="${fightSelection.f2}">Winner: ${getFighterById(fightSelection.f2).name}</option>`;
+    if (selectedFighter1) sel.innerHTML += `<option value="f1">Winner: ${selectedFighter1.name}</option>`;
+    if (selectedFighter2) sel.innerHTML += `<option value="f2">Winner: ${selectedFighter2.name}</option>`;
 }
-function addFightAdmin() {
+async function addFightAdmin() {
     const date = document.getElementById("fightDate").value;
     const winnerValue = document.getElementById("fightWinner").value;
     const method = document.getElementById("fightMethod").value;
@@ -676,13 +676,23 @@ function addFightAdmin() {
         updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
     }
 
+    const saved = await saveData();
+    if (!saved) {
+        alert("The fight was added locally, but saving it online failed. Check the browser console for the Firebase error.");
+        return;
+    }
+
     alert("Fight added successfully!");
 
     // Reset selection & forms
     selectedFighter1 = null;
     selectedFighter2 = null;
+    fightSelection = { f1: null, f2: null };
     document.getElementById("fightSearch1").value = "";
     document.getElementById("fightSearch2").value = "";
+    document.getElementById("fightResults1").innerHTML = "";
+    document.getElementById("fightResults2").innerHTML = "";
+    document.getElementById("fightWinner").innerHTML = '<option value="draw">Draw</option>';
     document.getElementById("fightTitleType").value = "none";
     renderLeaderboard();
 }
@@ -1100,8 +1110,10 @@ async function saveData() {
             weightClasses
         });
         console.log("Data saved to Firebase");
+        return true;
     } catch (e) {
         console.error("Error saving:", e);
+        return false;
     }
 }
 
