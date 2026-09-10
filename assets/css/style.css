@@ -1522,13 +1522,19 @@ label[for="predictionSearch2"] {
 }
 
 .belt-icon {
-  height: 28px;
+  height: 30px;
   width: auto;
   object-fit: contain;
 }
 
 .belt-icon.translucent {
-  opacity: 0.6; /* Fallback visually if image transparency needs adjustment */
+  opacity: 0.8; /* Fallback visually if image transparency needs adjustment */
+}
+
+/* Fighter profile page can override the default leaderboard badge size */
+#fighterProfile .fighter-profile-belt-icon {
+  height: 42px;
+  width: auto;
 }
 
 /* Container for the WIN/LOSS text in your fight row */
@@ -1545,7 +1551,7 @@ label[for="predictionSearch2"] {
   right: 100%;             /* Places the icon right to the left of WIN */
   top: 50%;
   transform: translateY(-50%); /* Centers the icon vertically with the text */
-  height: 16px;
+  height: 25px;
   width: auto;
   margin-right: 6px;       /* Spacing between icon and WIN */
 } 
@@ -1769,11 +1775,11 @@ label[for="predictionSearch2"] {
 @media (max-width: 768px) {
     .fight-row .bout-title-icon {
         position: absolute;
-        left: 16.5%;
+        left: 16%;
         right: auto;
         top: 50%;
         transform: translateY(-50%);
-        height: 16px;
+        height: 30px;
         width: auto;
         margin-left: 6px;
         margin-right: 0;

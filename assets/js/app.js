@@ -244,9 +244,6 @@ function getFighterById(id) { return fighters.find(f => f.id === id); }
 // ========================
 // LEADERBOARD
 // ========================
-// ========================
-// LEADERBOARD
-// ========================
 function renderLeaderboard() {
     const container = document.getElementById("leaderboardList");
     if (!container) return;
@@ -1294,16 +1291,13 @@ function getFighterBeltIcons(fighterId, weightClassesData) {
 // ==========================================
 // CHAMPIONSHIP BELT ICONS CONFIGURATION
 // ==========================================
-// ==========================================
-// CHAMPIONSHIP BELT ICONS CONFIGURATION
-// ==========================================
 const BELT_ICONS = {
-    undisputed: "assets/images/UndisputerFichterIcon.png",
-    previousUndisputed: "assets/images/PreviousUndisputerFichterIcon.png",
-    interim: "assets/images/InterimFighterIcon.png",
-    previousInterim: "assets/images/PreviousInterimFighterIcon.png",
-    undisputedBout: "assets/images/UndisputedBout.png",
-    interimBout: "assets/images/InterimBout.png"
+    undisputed: "assets/images/UndisputedTitle.png",
+    previousUndisputed: "assets/images/UndisputedPreviousTitle.png",
+    interim: "assets/images/InterimTitle.png",
+    previousInterim: "assets/images/InterimPreviousTitle.png",
+    undisputedBout: "assets/images/UndisputedTitleBout.png",
+    interimBout: "assets/images/InterimTitleBout.png"
 };
 
 // Expose functions globally
@@ -1315,10 +1309,13 @@ window.getTitleHistorySummary = getTitleHistorySummary;
 // In renderLeaderboard(), update the beltBadges call to pass selectedWeight:
 // const beltBadges = getFighterBeltBadgesHtml(f.id, weightClasses, selectedWeight);
 
-function getFighterBeltBadgesHtml(fighterId, weightClassesData = [], selectedWeight = "all") {
+function getFighterBeltBadgesHtml(fighterId, weightClassesData = [], selectedWeight = "all", context = "leaderboard") {
     if (!fighterId) return "";
     const icons = [];
     const fid = String(fighterId);
+    const isFighterProfile = context === "fighterProfile";
+    const iconClass = isFighterProfile ? "belt-icon fighter-profile-belt-icon" : "belt-icon";
+    const containerClass = isFighterProfile ? "fighter-belts fighter-profile-belts" : "fighter-belts";
 
     weightClassesData.forEach((wc) => {
         if (typeof wc === "string") return;
@@ -1333,7 +1330,7 @@ function getFighterBeltBadgesHtml(fighterId, weightClassesData = [], selectedWei
         if (wc.currentChampId && String(wc.currentChampId) === fid) {
             hasActiveUndisputed = true;
             icons.push(
-                `<img src="${BELT_ICONS.undisputed}" class="belt-icon" title="${wc.name} Champion" alt="Gold Belt">`
+                `<img src="${BELT_ICONS.undisputed}" class="${iconClass}" title="${wc.name} Champion" alt="Gold Belt">`
             );
         }
 
@@ -1342,7 +1339,7 @@ function getFighterBeltBadgesHtml(fighterId, weightClassesData = [], selectedWei
             hasActiveInterim = true;
             if (!hasActiveUndisputed) {
                 icons.push(
-                    `<img src="${BELT_ICONS.interim}" class="belt-icon" title="Interim ${wc.name} Champion" alt="Silver Belt">`
+                    `<img src="${BELT_ICONS.interim}" class="${iconClass}" title="Interim ${wc.name} Champion" alt="Silver Belt">`
                 );
             }
         }
@@ -1358,19 +1355,19 @@ function getFighterBeltBadgesHtml(fighterId, weightClassesData = [], selectedWei
 
         if (hasFormerUndisputed && !hasActiveUndisputed) {
             icons.push(
-                `<img src="${BELT_ICONS.previousUndisputed}" class="belt-icon translucent" title="Former ${wc.name} Champion" alt="Translucent Gold Belt">`
+                `<img src="${BELT_ICONS.previousUndisputed}" class="${iconClass} translucent" title="Former ${wc.name} Champion" alt="Translucent Gold Belt">`
             );
         }
 
         if (hasFormerInterim && !hasActiveInterim && !hasAnyUndisputedInDivision) {
             icons.push(
-                `<img src="${BELT_ICONS.previousInterim}" class="belt-icon translucent" title="Former Interim ${wc.name} Champion" alt="Translucent Silver Belt">`
+                `<img src="${BELT_ICONS.previousInterim}" class="${iconClass} translucent" title="Former Interim ${wc.name} Champion" alt="Translucent Silver Belt">`
             );
         }
     });
 
     if (icons.length === 0) return "";
-    return `<span class="fighter-belts">${icons.join("")}</span>`;
+    return `<span class="${containerClass}">${icons.join("")}</span>`;
 }
 
 // Global exposure for inline HTML event handlers
@@ -1483,7 +1480,7 @@ function normalizeDateStr(d) {
 }
 
 function renderFighterProfile(f) {
-    const beltBadges = getFighterBeltBadgesHtml(f.id, weightClasses);
+    const beltBadges = getFighterBeltBadgesHtml(f.id, weightClasses, "all", "fighterProfile");
     const titleSummaryArray = getTitleHistorySummary(f, weightClasses);
 
     const nameElem = document.getElementById("fighterName");
