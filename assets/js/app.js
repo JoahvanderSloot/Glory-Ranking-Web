@@ -2055,7 +2055,7 @@ const countUniqueDefenses = (beltType) => {
 
             (fighter.fights || []).forEach(f => {
                 // A champ retains/defends their belt on a WIN or a DRAW
-                const isRetainedResult = f.result === "win" || f.result === "draw" || f.result === "majority draw" || f.result === "split draw";
+                const isRetainedResult = f.result === "win" || f.result === "draw";
                 if (!isRetainedResult) return;
                 
                 const meta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
@@ -2139,7 +2139,8 @@ const countUniqueDefenses = (beltType) => {
 
     Object.entries(fightsByDate).forEach(([date, dayFights]) => {
         dayFights.forEach(f => {
-            if (f.result !== "loss") return;
+            const isNonWinningResult = ["loss", "draw", "majority draw", "split draw"].includes(f.result);
+            if (!isNonWinningResult) return;
 
             const explicitType = normalizeTitleType(f.type || f.titleType || (f.isInterim ? "interim" : ""));
             const titleMeta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
