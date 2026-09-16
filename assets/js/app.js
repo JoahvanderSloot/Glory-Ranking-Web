@@ -706,12 +706,14 @@ async function addFightAdmin() {
 
     // 3. Update Weight Classes Championship Data
     let titleData = null;
-    if (titleType !== "none") {
-        titleData = updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
-        if (titleData) {
-            fightForF1.weightClass = titleData.weightClass;
-            fightForF2.weightClass = titleData.weightClass;
-        }
+if (titleType !== "none") {
+    titleData = updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType);
+    
+    // Fallback to the fighter's weight class if titleData returns null (e.g., Draw between non-champs)
+    const assignedWc = titleData?.weightClass || f1.weightClass || f2.weightClass;
+    fightForF1.weightClass = assignedWc;
+    fightForF2.weightClass = assignedWc;
+        
         if (titleData?.wasDefendingChamp) {
             const championFight = titleData.championId === f1.id ? fightForF1 : fightForF2;
             championFight.wasDefendingChamp = true;
@@ -768,14 +770,25 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     const beltType = normalizedType === "interim" ? "interim" : "undisputed";
     const currentChampionKey = beltType === "interim" ? "currentInterimChampId" : "currentChampId";
     const isDraw = winnerId === null;
+    const championCandidates = weightClasses.filter(w =>
+        typeof w === "object" &&
+        (isDraw
+            ? [f1.id, f2.id].some(id => String(w[currentChampionKey]) === String(id))
+            : String(w[currentChampionKey]) === String(winnerId))
+    );
+    const drawChampionId = isDraw
+        ? [f1.id, f2.id].find(id => championCandidates.some(w =>
+            String(w[currentChampionKey]) === String(id)
+        ))
+        : null;
+    const champion = drawChampionId === f1.id ? f1 : drawChampionId === f2.id ? f2 : null;
+    const preferredDivision = isDraw
+        ? champion?.weightClass
+        : (winnerId === f1.id ? f2.weightClass : f1.weightClass);
 
     // A double champion may have a different stored weight class than the belt
     // being defended, so prefer the opponent's division when it is held by the winner.
-    const championDivision = weightClasses.find(w =>
-        typeof w === "object" &&
-        (String(w[currentChampionKey]) === String(winnerId) ||
-            (isDraw && [f1.id, f2.id].some(id => String(w[currentChampionKey]) === String(id))))
-    );
+    const championDivision = championCandidates.find(w => w.name === preferredDivision) || championCandidates[0];
     const targetWcName = championDivision?.name ||
         (winnerId === f1.id ? f2.weightClass : f1.weightClass);
     const targetIndex = weightClasses.findIndex(w =>
@@ -795,9 +808,6 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     wcObj.titleBouts = wcObj.titleBouts || wcObj.titleFights || [];
     wcObj.reigns = wcObj.reigns || [];
     const currentChampionId = wcObj[currentChampionKey] ?? null;
-    const drawChampionId = isDraw && [f1.id, f2.id].find(id =>
-        String(currentChampionId) === String(id)
-    );
     const championId = isDraw ? (drawChampionId || null) : winnerId;
     const challengerId = isDraw
         ? (championId === f1.id ? f2.id : championId === f2.id ? f1.id : null)
@@ -2175,7 +2185,7 @@ const countUniqueDefenses = (beltType) => {
 
             if (!isTitleBout) return;
 
-            const fightWc = titleMeta.weightClass || f.weightClass || fighter.weightClass || "Heavyweight";
+            const fightWc = titleMeta.weightClass || f.weightClass || fighter.weightClass || (weightClasses[0]?.name || weightClasses[0]);
             const isInterim =
                 explicitType === "interim" ||
                 titleMeta.type === "interim" ||
