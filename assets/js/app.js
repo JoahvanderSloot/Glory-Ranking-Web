@@ -713,9 +713,14 @@ async function addFightAdmin() {
             fightForF2.weightClass = titleData.weightClass;
         }
         if (titleData?.wasDefendingChamp) {
-            const winningFight = winnerId === f1.id ? fightForF1 : fightForF2;
-            winningFight.wasDefendingChamp = true;
-            winningFight.championId = winnerId;
+            const championFight = titleData.championId === f1.id ? fightForF1 : fightForF2;
+            championFight.wasDefendingChamp = true;
+            championFight.championId = titleData.championId;
+            championFight.challengerId = titleData.challengerId;
+
+            const challengerFight = titleData.championId === f1.id ? fightForF2 : fightForF1;
+            challengerFight.championId = titleData.championId;
+            challengerFight.challengerId = titleData.challengerId;
         }
     }
 
@@ -761,21 +766,18 @@ function normalizeTitleType(rawType) {
 function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     const normalizedType = normalizeTitleType(titleType);
     const beltType = normalizedType === "interim" ? "interim" : "undisputed";
-    const winner = winnerId === f1.id ? f1 : f2;
-    const opponent = winnerId === f1.id ? f2 : f1;
     const currentChampionKey = beltType === "interim" ? "currentInterimChampId" : "currentChampId";
+    const isDraw = winnerId === null;
 
     // A double champion may have a different stored weight class than the belt
     // being defended, so prefer the opponent's division when it is held by the winner.
     const championDivision = weightClasses.find(w =>
         typeof w === "object" &&
-        w.name === opponent.weightClass &&
-        String(w[currentChampionKey]) === String(winnerId)
-    ) || weightClasses.find(w =>
-        typeof w === "object" &&
-        String(w[currentChampionKey]) === String(winnerId)
+        (String(w[currentChampionKey]) === String(winnerId) ||
+            (isDraw && [f1.id, f2.id].some(id => String(w[currentChampionKey]) === String(id))))
     );
-    const targetWcName = championDivision?.name || opponent.weightClass || winner.weightClass;
+    const targetWcName = championDivision?.name ||
+        (winnerId === f1.id ? f2.weightClass : f1.weightClass);
     const targetIndex = weightClasses.findIndex(w =>
         (typeof w === "string" ? w : w?.name) === targetWcName
     );
@@ -793,9 +795,16 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     wcObj.titleBouts = wcObj.titleBouts || wcObj.titleFights || [];
     wcObj.reigns = wcObj.reigns || [];
     const currentChampionId = wcObj[currentChampionKey] ?? null;
+    const drawChampionId = isDraw && [f1.id, f2.id].find(id =>
+        String(currentChampionId) === String(id)
+    );
+    const championId = isDraw ? (drawChampionId || null) : winnerId;
+    const challengerId = isDraw
+        ? (championId === f1.id ? f2.id : championId === f2.id ? f1.id : null)
+        : loserId;
     const wasDefendingChamp = normalizedType !== "vacant" &&
-        Boolean(winnerId) &&
-        String(currentChampionId) === String(winnerId);
+        Boolean(championId) &&
+        String(currentChampionId) === String(championId);
     const savedBoutType = wasDefendingChamp
         ? "defense"
         : (normalizedType === "none" ? "undisputed" : normalizedType);
@@ -803,14 +812,23 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
     const bout = {
         date: date,
         type: savedBoutType,
-        challengerId: loserId,
-        winnerId: winnerId
+        challengerId,
+        winnerId,
+        ...(championId ? { championId } : {})
     };
 
     // A. Log Title Bout
     wcObj.titleBouts.push(bout);
 
-    if (!winnerId) return { weightClass: wcObj.name, wasDefendingChamp: false, type: savedBoutType }; // Draw - no belt change
+    if (!winnerId) {
+        return {
+            weightClass: wcObj.name,
+            wasDefendingChamp,
+            championId,
+            challengerId,
+            type: savedBoutType
+        };
+    }
 
     // B. Handle Belt Handover & Reign Logic
     if (beltType === "undisputed") {
@@ -840,7 +858,7 @@ function updateTitleDataOnFight(f1, f2, winnerId, loserId, date, titleType) {
         }
     }
 
-    return { weightClass: wcObj.name, wasDefendingChamp, type: savedBoutType };
+    return { weightClass: wcObj.name, wasDefendingChamp, championId, challengerId, type: savedBoutType };
 }
 
 function clearAddFightFields() {
@@ -1926,7 +1944,8 @@ function getTitleHistorySummary(fighter, weightClassesData = []) {
                 const boutDate = parseDate(b.date);
                 const isAfterStart = startDate !== null ? (boutDate && boutDate >= startDate) : true;
                 const isBeforeEnd = endDate !== null && endDate !== Infinity ? (boutDate && boutDate <= endDate) : true;
-                const isWinner = String(b.winnerId) === fid;
+                const isWinner = String(b.winnerId) === fid ||
+                    (b.winnerId === null && String(b.championId) === fid);
                 const isChampionAtBout = String(b.championId) === fid;
                 const isDefenseExplicit = normalizeTitleType(b.type || b.titleType || "") === "defense"
                     || b.isDefense === true
@@ -2139,9 +2158,9 @@ const countUniqueDefenses = (beltType) => {
 
     Object.entries(fightsByDate).forEach(([date, dayFights]) => {
         dayFights.forEach(f => {
-            const isNonWinningResult = ["loss", "draw", "majority draw", "split draw"].includes(f.result);
+            const isNonWinningResult = ["loss", "draw"].includes(f.result);
             if (!isNonWinningResult) return;
-
+            
             const explicitType = normalizeTitleType(f.type || f.titleType || (f.isInterim ? "interim" : ""));
             const titleMeta = isTitleFightForFighter(f, fid, weightClassesData, fighter);
             const isTitleBout =
@@ -2163,8 +2182,9 @@ const countUniqueDefenses = (beltType) => {
                 f.isInterim === true ||
                 f.type === "interim";
             const isDefending = String(f.championId) === fid || f.wasDefendingChamp || f.isDefense || f.isTitleDefense;
+            const isChallenger = String(f.challengerId) === fid;
 
-            if (!isDefending && !heldUndisputedInWC(fightWc)) {
+            if (!isDefending && (isChallenger || !heldUndisputedInWC(fightWc))) {
                 addTag(fightWc, isInterim ? "Interim title contender" : "Title contender", f.date || date);
             }
         });
