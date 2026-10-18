@@ -1525,6 +1525,19 @@ label[for="predictionSearch2"] {
   height: 30px;
   width: auto;
   object-fit: contain;
+  margin-top: -8px;
+  margin-bottom: -8px;
+}
+
+/* Keep leaderboard row height constant regardless of belt icons */
+#leaderboardList .fighter-row {
+  min-height: 40px;
+  align-items: center;
+}
+
+#leaderboardList .fighter-belts {
+  margin-top: -8px;
+  margin-bottom: -8px;
 }
 
 .belt-icon.translucent {
@@ -1535,6 +1548,8 @@ label[for="predictionSearch2"] {
 #fighterProfile .fighter-profile-belt-icon {
   height: 42px;
   width: auto;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* Container for the WIN/LOSS text in your fight row */
