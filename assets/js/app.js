@@ -33,6 +33,7 @@ function showPage(pageId) {
         performPageSwitch(pageId);
         syncAdminPanelVisibility(); // Sync immediately for normal switches
     }
+
 }
 
 // 3. Move your existing logic into this helper function
@@ -396,13 +397,19 @@ function openFighter(id) {
     showPage("fighterProfile");
 }
 
+function sortFightsChronologically(fights) {
+    return (fights || []).slice().sort((a, b) =>
+        String(a.date || "").localeCompare(String(b.date || ""))
+    );
+}
+
 function renderFightHistory(fights) {
     const historyContainer = document.getElementById("fightHistory");
     if (!historyContainer) return;
 
     const fighterId = currentFighter ? currentFighter.id : null;
 
-    historyContainer.innerHTML = fights.slice().reverse().map(fight => {
+    historyContainer.innerHTML = sortFightsChronologically(fights).reverse().map(fight => {
         const opp = getFighterById(fight.opponentId);
         const eloChange = showKOBonus ? fight.eloChangeKO : fight.eloChange;
 
@@ -433,13 +440,14 @@ function renderFightHistory(fights) {
 
 function renderEloChart(fights) {
     const ctx = document.getElementById("eloChart").getContext("2d");
+    const chronologicalFights = sortFightsChronologically(fights);
 
     let runningElo = 1000;
     let runningEloKO = 1000;
     const labels = ["Start"];
     const data = [showKOBonus ? runningEloKO : runningElo];
 
-    fights.forEach(fight => {
+    chronologicalFights.forEach(fight => {
         const storedElo = Number(showKOBonus ? fight.eloKO : fight.elo);
         const eloChange = Number(showKOBonus ? fight.eloChangeKO : fight.eloChange);
 
