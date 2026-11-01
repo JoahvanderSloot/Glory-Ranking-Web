@@ -398,9 +398,48 @@ function openFighter(id) {
 }
 
 function sortFightsChronologically(fights) {
-    return (fights || []).slice().sort((a, b) =>
-        String(a.date || "").localeCompare(String(b.date || ""))
+    return sortFightsByTournamentOrder(fights, false);
+}
+
+function getSameDayTournamentDepth(fighterId, date, visited = new Set()) {
+    const visitKey = `${fighterId}|${date}`;
+    if (visited.has(visitKey)) return 0;
+
+    const fighter = getFighterById(fighterId);
+    if (!fighter) return 0;
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(visitKey);
+
+    const sameDayWins = (fighter.fights || []).filter(fight =>
+        fight.date === date && fight.result === "win"
     );
+
+    return sameDayWins.reduce((depth, fight) => Math.max(
+        depth,
+        1 + getSameDayTournamentDepth(fight.opponentId, date, nextVisited)
+    ), 0);
+}
+
+function getTournamentOrder(fight, originalIndex) {
+    return {
+        depth: getSameDayTournamentDepth(fight.opponentId, fight.date),
+        originalIndex
+    };
+}
+
+function sortFightsByTournamentOrder(fights, newestFirst) {
+    return (fights || [])
+        .map((fight, originalIndex) => ({ fight, originalIndex }))
+        .sort((a, b) => {
+            const dateCompare = String(a.fight.date || "").localeCompare(String(b.fight.date || ""));
+            if (dateCompare !== 0) return newestFirst ? -dateCompare : dateCompare;
+
+            const orderA = getTournamentOrder(a.fight, a.originalIndex);
+            const orderB = getTournamentOrder(b.fight, b.originalIndex);
+            return orderA.depth - orderB.depth || orderA.originalIndex - orderB.originalIndex;
+        })
+        .map(entry => entry.fight);
 }
 
 function renderFightHistory(fights) {
@@ -409,7 +448,7 @@ function renderFightHistory(fights) {
 
     const fighterId = currentFighter ? currentFighter.id : null;
 
-    historyContainer.innerHTML = sortFightsChronologically(fights).reverse().map(fight => {
+    historyContainer.innerHTML = sortFightsByTournamentOrder(fights, true).map(fight => {
         const opp = getFighterById(fight.opponentId);
         const eloChange = showKOBonus ? fight.eloChangeKO : fight.eloChange;
 
@@ -440,7 +479,7 @@ function renderFightHistory(fights) {
 
 function renderEloChart(fights) {
     const ctx = document.getElementById("eloChart").getContext("2d");
-    const chronologicalFights = sortFightsChronologically(fights);
+    const chronologicalFights = sortFightsByTournamentOrder(fights, false);
 
     let runningElo = 1000;
     let runningEloKO = 1000;
