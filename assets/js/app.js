@@ -397,10 +397,6 @@ function openFighter(id) {
     showPage("fighterProfile");
 }
 
-function sortFightsChronologically(fights) {
-    return sortFightsByTournamentOrder(fights, false);
-}
-
 function getSameDayTournamentDepth(fighterId, date, visited = new Set()) {
     const visitKey = `${fighterId}|${date}`;
     if (visited.has(visitKey)) return 0;
@@ -437,7 +433,9 @@ function sortFightsByTournamentOrder(fights, newestFirst) {
 
             const orderA = getTournamentOrder(a.fight, a.originalIndex);
             const orderB = getTournamentOrder(b.fight, b.originalIndex);
-            return orderA.depth - orderB.depth || orderA.originalIndex - orderB.originalIndex;
+            const depthCompare = orderA.depth - orderB.depth;
+            return (newestFirst ? -depthCompare : depthCompare) ||
+                orderA.originalIndex - orderB.originalIndex;
         })
         .map(entry => entry.fight);
 }
