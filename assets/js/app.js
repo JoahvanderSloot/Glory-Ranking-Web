@@ -397,45 +397,51 @@ function openFighter(id) {
     showPage("fighterProfile");
 }
 
-function getSameDayTournamentDepth(fighterId, date, visited = new Set()) {
-    const visitKey = `${fighterId}|${date}`;
-    if (visited.has(visitKey)) return 0;
-
+// Number of rounds the opponent had already won that day, NOT counting wins over
+// the fighter (or anyone already visited), so round 1 = 0, semi = 1, final = 2.
+function getSameDayTournamentDepth(fighterId, date, blocked = new Set()) {
     const fighter = getFighterById(fighterId);
     if (!fighter) return 0;
 
-    const nextVisited = new Set(visited);
-    nextVisited.add(visitKey);
+    const nextBlocked = new Set(blocked);
+    nextBlocked.add(String(fighterId));
 
     const sameDayWins = (fighter.fights || []).filter(fight =>
-        fight.date === date && fight.result === "win"
+        fight.date === date &&
+        fight.result === "win" &&
+        !nextBlocked.has(String(fight.opponentId))
     );
 
     return sameDayWins.reduce((depth, fight) => Math.max(
         depth,
-        1 + getSameDayTournamentDepth(fight.opponentId, date, nextVisited)
+        1 + getSameDayTournamentDepth(fight.opponentId, date, nextBlocked)
     ), 0);
 }
 
-function getTournamentOrder(fight, originalIndex) {
+function getTournamentOrder(fight, originalIndex, fighterId) {
     return {
-        depth: getSameDayTournamentDepth(fight.opponentId, fight.date),
+        depth: getSameDayTournamentDepth(
+            fight.opponentId,
+            fight.date,
+            new Set(fighterId !== null && fighterId !== undefined ? [String(fighterId)] : [])
+        ),
         originalIndex
     };
 }
 
-function sortFightsByTournamentOrder(fights, newestFirst) {
+function sortFightsByTournamentOrder(fights, newestFirst, fighterId = currentFighter ? currentFighter.id : null) {
     return (fights || [])
         .map((fight, originalIndex) => ({ fight, originalIndex }))
         .sort((a, b) => {
             const dateCompare = String(a.fight.date || "").localeCompare(String(b.fight.date || ""));
             if (dateCompare !== 0) return newestFirst ? -dateCompare : dateCompare;
 
-            const orderA = getTournamentOrder(a.fight, a.originalIndex);
-            const orderB = getTournamentOrder(b.fight, b.originalIndex);
+            const orderA = getTournamentOrder(a.fight, a.originalIndex, fighterId);
+            const orderB = getTournamentOrder(b.fight, b.originalIndex, fighterId);
             const depthCompare = orderA.depth - orderB.depth;
             return (newestFirst ? -depthCompare : depthCompare) ||
-                orderA.originalIndex - orderB.originalIndex;
+                (newestFirst ? orderB.originalIndex - orderA.originalIndex
+                             : orderA.originalIndex - orderB.originalIndex);
         })
         .map(entry => entry.fight);
 }
@@ -485,20 +491,22 @@ function renderEloChart(fights) {
     const data = [showKOBonus ? runningEloKO : runningElo];
 
     chronologicalFights.forEach(fight => {
-        const storedElo = Number(showKOBonus ? fight.eloKO : fight.elo);
-        const eloChange = Number(showKOBonus ? fight.eloChangeKO : fight.eloChange);
+    const eloChange = Number(showKOBonus ? fight.eloChangeKO : fight.eloChange);
+    const storedElo = Number(showKOBonus ? fight.eloKO : fight.elo);
 
-        if (Number.isFinite(storedElo)) {
-            if (showKOBonus) runningEloKO = storedElo;
-            else runningElo = storedElo;
-        } else if (Number.isFinite(eloChange)) {
-            if (showKOBonus) runningEloKO += eloChange;
-            else runningElo += eloChange;
-        }
+    // Prefer the change (order-independent). Only fall back to the stored value
+    // for old fights that have no change recorded.
+    if (Number.isFinite(eloChange)) {
+        if (showKOBonus) runningEloKO += eloChange;
+        else runningElo += eloChange;
+    } else if (Number.isFinite(storedElo)) {
+        if (showKOBonus) runningEloKO = storedElo;
+        else runningElo = storedElo;
+    }
 
-        labels.push(fight.date || "Unknown");
-        data.push(showKOBonus ? runningEloKO : runningElo);
-    });
+    labels.push(fight.date || "Unknown");
+    data.push(showKOBonus ? runningEloKO : runningElo);
+});
 
     if (eloChart) eloChart.destroy();
 
